@@ -1,0 +1,124 @@
+tls:
+  options:
+    default:
+      sniStrict: true
+http:
+  services:
+    audio-svc:
+      loadBalancer:
+        servers:
+          - url: 'https://{{env "SYNOLOGY_HOSTNAME"}}:8801'
+    drive-svc:
+      loadBalancer:
+        servers:
+          - url: 'https://{{env "SYNOLOGY_HOSTNAME"}}:10003'
+    chat-svc:
+      loadBalancer:
+        servers:
+          - url: 'https://{{env "SYNOLOGY_HOSTNAME"}}:20001'
+    file-svc:
+      loadBalancer:
+        servers:
+          - url: 'https://{{env "SYNOLOGY_HOSTNAME"}}:7001'
+    kibana-svc:
+      loadBalancer:
+        servers:
+          - url: 'https://{{env "NUC_HOSTNAME"}}.{{env "LAN_DOMAIN"}}:5601'
+    nas-svc:
+      loadBalancer:
+        servers:
+          - url: 'https://{{env "SYNOLOGY_HOSTNAME"}}:5001'
+    nodered-svc:
+      loadBalancer:
+        servers:
+          - url: 'http://{{env "NUC_HOSTNAME"}}.{{env "LAN_DOMAIN"}}:1880'
+    notes-svc:
+      loadBalancer:
+        servers:
+          - url: 'https://{{env "SYNOLOGY_HOSTNAME"}}:9351'
+    photos-svc:
+      loadBalancer:
+        servers:
+          - url: 'https://{{env "SYNOLOGY_HOSTNAME"}}:5443'
+    qbittorrent-svc:
+      loadBalancer:
+        servers:
+          - url: 'http://{{env "SYNOLOGY_HOSTNAME"}}:8081'
+    surveillance-svc:
+      loadBalancer:
+        servers:
+          - url: 'https://{{env "SYNOLOGY_HOSTNAME"}}:5001'
+    sync-svc:
+      loadBalancer:
+        servers:
+          - url: 'https://{{env "SYNOLOGY_HOSTNAME"}}:28888'
+    videos-svc:
+      loadBalancer:
+        servers:
+          - url: 'https://{{env "SYNOLOGY_HOSTNAME"}}:9008'
+  routers:
+    audio-rtr:
+      rule: Host(`audio.{{env "DNS_DOMAIN"}}`)
+      entrypoints:
+        - websecure
+      service: audio-svc
+    drive-rtr:
+      rule: Host(`drive.{{env "DNS_DOMAIN"}}`)
+      entrypoints:
+        - websecure
+      service: drive-svc
+    chat-rtr:
+      rule: Host(`chat.{{env "DNS_DOMAIN"}}`)
+      entrypoints:
+        - websecure
+      service: chat-svc
+    file-rtr:
+      rule: Host(`file.{{env "DNS_DOMAIN"}}`)
+      entrypoints:
+        - websecure
+      service: file-svc
+    kibana-rtr:
+      rule: Host(`kibana.{{env "DNS_DOMAIN"}}`)
+      entrypoints:
+        - websecure
+      service: kibana-svc
+    nas-rtr:
+      rule: Host(`nas.{{env "DNS_DOMAIN"}}`)
+      entrypoints:
+        - websecure
+      service: nas-svc
+    nodered-rtr:
+      rule: Host(`nodered.{{env "DNS_DOMAIN"}}`)
+      entrypoints:
+        - websecure
+      service: nodered-svc
+    notes-rtr:
+      rule: Host(`notes.{{env "DNS_DOMAIN"}}`)
+      entrypoints:
+        - websecure
+      service: notes-svc
+    photos-rtr:
+      rule: Host(`photos.{{env "DNS_DOMAIN"}}`)
+      entrypoints:
+        - websecure
+      service: photos-svc
+    qbittorrent-rtr:
+      rule: Host(`qbittorrent.{{env "DNS_DOMAIN"}}`)
+      entrypoints:
+        - websecure
+      service: qbittorrent-svc
+    surveillance-rtr:
+      rule: Host(`surveillance.{{env "DNS_DOMAIN"}}`)
+      entrypoints:
+        - websecure
+      service: surveillance-svc
+    sync-rtr:
+      rule: Host(`sync.{{env "DNS_DOMAIN"}}`)
+      entrypoints:
+        - websecure
+      service: sync-svc
+    videos-rtr:
+      rule: Host(`videos.{{env "DNS_DOMAIN"}}`)
+      entrypoints:
+        - websecure
+      service: videos-svc
