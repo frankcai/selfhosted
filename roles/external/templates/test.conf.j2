@@ -1,0 +1,13 @@
+server {
+    listen 80;
+    server_name Mkopm-46699.portmap.io;
+
+    #Nginx default client_max_body_size is 1MB.
+    #Increasing the limit fixes some issues related to file uploads.
+    client_max_body_size 100M;
+
+    location / {
+        # Serve static content
+        return 200 'Hello !';
+    }
+}

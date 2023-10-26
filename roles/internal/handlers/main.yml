@@ -1,0 +1,90 @@
+---
+- name: Restart Nginx
+  service:
+    name: nginx
+    state: restarted
+  become: yes
+- name: Restart Home-Assistant-DB Container
+  docker_container:
+    name: home-assistant-db
+    state: started
+    restart: yes
+  become: yes    
+- name: Restart Home-Assistant Container
+  docker_container:
+    name: home-assistant
+    state: started
+    restart: yes
+  become: yes        
+- name: Restart Linkding Container
+  docker_container:
+    name: linkding
+    state: started
+    restart: yes
+  become: yes     
+- name: Restart Duplicacy Container
+  docker_container:
+    name: duplicacy
+    state: started
+    restart: yes
+  become: yes    
+- name: Restart Prowlarr Container
+  docker_container:
+    name: prowlarr
+    state: started
+    restart: yes
+  become: yes  
+- name: Restart Radarr Container
+  docker_container:
+    name: radarr
+    state: started
+    restart: yes
+  become: yes  
+- name: Restart Sonarr Container
+  docker_container:
+    name: sonarr
+    state: started
+    restart: yes
+  become: yes    
+- name: Restart Overseerr Container
+  docker_container:
+    name: overseerr
+    state: started
+    restart: yes
+  become: yes      
+- name: Restart Project Send Container
+  docker_container:
+    name: projectsend
+    state: started
+    restart: yes
+  become: yes    
+- name: Restart Project Send DB Container
+  docker_container:
+    name: projectsend-db
+    state: started
+    restart: yes
+  become: yes   
+- name: Restart Changedetection Container
+  docker_container:
+    name: changedetection
+    state: started
+    restart: yes
+  become: yes      
+- name: Restart Babybuddy Container
+  docker_container:
+    name: babybuddy
+    state: started
+    restart: yes
+  become: yes   
+- name: Restart Tautulli Container
+  docker_container:
+    name: tautulli
+    state: started
+    restart: yes
+  become: yes      
+- name: Restart Homepage Container
+  docker_container:
+    name: homepage
+    state: started
+    restart: yes
+  become: yes        

@@ -1,0 +1,267 @@
+---
+- name: Install required packages
+  apt:
+    name:
+      - nfs-common
+      - docker.io
+      - docker-compose
+      - nginx
+      - ufw
+      - certbot
+      - python3-certbot-nginx
+      - python3-certbot-dns-cloudflare
+      - fail2ban
+    state: present
+  when: ansible_os_family == "Debian"
+  become: yes
+
+- name: Check if NFS directories exist
+  stat:
+    path: "{{ item.dest }}"
+  register: dir_status
+  loop: "{{ NFS_MOUNTS }}"
+    
+- name: Create required NFS directories if they don't exist
+  file:
+    path: "{{ item.item }}"
+    state: directory
+    mode: '0755'
+  loop: "{{ dir_status.results }}"
+  when: item.stat.exists == false
+  become: yes
+
+- name: Start and Enable Fail2ban
+  service:
+    name: fail2ban
+    state: started
+    enabled: yes
+  become: yes
+
+- name: Add NFS mounts to /etc/fstab
+  blockinfile:
+    path: /etc/fstab
+    block: |
+      {% for MOUNT in NFS_MOUNTS %}
+      {{ NFS_SERVER }}:{{ MOUNT.source }} {{ MOUNT.dest }} nfs {{ MOUNT.options }} 0 0
+      {% endfor %}
+  become: yes
+
+- name: Test NFS mounts
+  command:
+    cmd: mount -a
+  become: yes
+  register: mount_test
+  failed_when: mount_test.rc != 0
+
+- name: Add user to docker group
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+  become: yes
+  when: ansible_os_family == "Debian"
+
+- name: Ensure Docker service is started and enabled
+  service:
+    name: docker
+    state: started
+    enabled: yes
+  become: yes
+
+- name: Set docker socket permissions
+  file:
+    path: /var/run/docker.sock
+    group: docker
+    mode: '0660'
+  become: yes
+
+- name: Ensure Plex Docker container is running
+  docker_container:
+    name: plex
+    image: linuxserver/plex:latest
+    env:
+      PUID: "{{ UID | string }}"
+      PGID: "{{ GID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ PLEX_MOUNT_1 }}"
+      - "{{ PLEX_MOUNT_2 }}"
+      - "{{ PLEX_MOUNT_3 }}"
+      - "{{ PLEX_MOUNT_4 }}"
+      - "{{ CFG_MOUNT }}/plex-cfg:/config"
+    ports:
+      - "32400:32400"
+    restart_policy: always
+  notify: Restart Plex Container
+
+- name: Ensure Vaultwarden Docker container is running
+  docker_container:
+    name: vaultwarden
+    image: vaultwarden/server:latest
+    user: "{{ UID | string }}:{{ GID | string }}"
+    env:
+      TZ: "{{ TIME_ZONE }}"
+      WEBSOCKET_ENABLED: "true"
+      SHOW_PASSWORD_HINT: "false"
+      SIGNUPS_ALLOWED: "false" 
+    volumes:
+      - "{{ CFG_MOUNT }}/vaultwarden-cfg/:/data/"
+    ports:
+      - "8080:80"
+    restart_policy: always
+  notify: Restart Vaultwarden Container
+
+- name: Allow SSH access through UFW
+  ufw:
+    rule: allow
+    name: OpenSSH
+  become: yes
+
+- name: Allow traffic on port 80 for Nginx
+  ufw:
+    rule: allow
+    port: '80'
+    proto: tcp
+  become: yes
+
+- name: Allow traffic on port 443 for Nginx
+  ufw:
+    rule: allow
+    port: '443'
+    proto: tcp
+  become: yes
+
+- name: Enable ufw
+  ufw:
+    state: enabled
+  become: yes
+
+- name: Create Cloudflare credentials file for Certbot
+  copy:
+    dest: "/etc/letsencrypt/cloudflare.ini"
+    content: |
+      dns_cloudflare_api_token = {{ CLOUDFLARE_API_TOKEN }}
+    mode: '0600'
+    owner: 'root'
+    group: 'root'
+  become: yes
+  when: ansible_os_family == "Debian"
+
+- name: Obtain wildcard SSL certificates from Let's Encrypt using Cloudflare
+  command:
+    cmd: >
+      certbot certonly --agree-tos --non-interactive 
+      --email {{ LETSENCRYPT_EMAIL }}
+      --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini
+      -d {{ DNS_DOMAIN }} -d *.{{ DNS_DOMAIN }}
+    creates: /etc/letsencrypt/live/{{ DNS_DOMAIN }}/fullchain.pem
+  become: yes
+  when: ansible_os_family == "Debian"
+
+- name: Check if certs were recently renewed
+  stat:
+    path: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/fullchain.pem
+  register: cert_stat
+  become: yes
+
+- block:
+  - name: Ensure the destination directory exists on local Ansible controller
+    file:
+      path: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}
+      state: directory
+      mode: '0755'
+      owner: 'root'
+      group: 'root'
+    delegate_to: localhost
+    become: yes 
+
+  - name: Synchronize SSL certs from remote to Ansible controller
+    synchronize:
+      src: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/
+      dest: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/
+      mode: pull
+    delegate_to: localhost
+    become: yes
+
+  when: cert_stat.stat.exists and cert_stat.stat.mtime < 86400
+
+- name: Ensure /etc/nginx/ssl directory exists
+  file:
+    path: /etc/nginx/ssl
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  become: yes
+
+- name: Generate strong DH parameters
+  command:
+    cmd: openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
+    creates: /etc/nginx/ssl/dhparam.pem
+  become: yes
+
+- name: Update Nginx configuration using template
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+  become: yes
+  notify: Restart Nginx
+
+- name: Place Nginx config for services
+  template:
+    src: "{{ item }}.conf.j2"
+    dest: "/etc/nginx/sites-available/{{ item }}.conf"
+  loop:
+    - vaultwarden
+    - plex
+    - test
+    - chat
+    - drive
+    - file
+  become: yes
+  notify: Restart Nginx
+
+- name: Symlink Nginx config to sites-enabled for services
+  file:
+    src: "/etc/nginx/sites-available/{{ item }}.conf"
+    dest: "/etc/nginx/sites-enabled/{{ item }}.conf"
+    state: link
+  loop:
+    - vaultwarden
+    - plex
+    - test
+    - chat
+    - drive
+    - file
+  become: yes
+  notify: Restart Nginx
+  
+- name: Ensure default site is not enabled
+  file:
+    path: "/etc/nginx/sites-enabled/default"
+    state: absent
+  become: yes
+  notify: Restart Nginx 
+
+- name: Ensure Nginx is running and enabled at boot
+  service:
+    name: nginx
+    state: started
+    enabled: yes
+  become: yes
+
+- name: Set up cron job for cert renewal
+  cron:
+    name: "Certbot Renewal"
+    hour: "2"
+    minute: "30"
+    job: "certbot renew --quiet --post-hook 'systemctl reload nginx'"
+  become: yes
+
+- name: Set up cron job for system package updates
+  cron:
+    name: "System Package Updates"
+    hour: "4"
+    minute: "0"
+    job: "apt-get update && apt-get upgrade -y"
+  become: yes
