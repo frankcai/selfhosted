@@ -1,0 +1,516 @@
+---
+- name: Install required packages
+  apt:
+    name:
+      - nfs-common
+      - docker.io
+      - docker-compose
+      - nginx
+      - ufw
+      - fail2ban
+    state: present
+  when: ansible_os_family == "Debian"
+  become: yes
+
+- name: Check if NFS directories exist
+  stat:
+    path: "{{ item.dest }}"
+  register: dir_status
+  loop: "{{ NFS_MOUNTS }}"
+    
+- name: Create required NFS directories if they don't exist
+  file:
+    path: "{{ item.item }}"
+    state: directory
+    mode: '0755'
+  loop: "{{ dir_status.results }}"
+  when: item.stat.exists == false
+  become: yes
+
+- name: Add NFS mounts to /etc/fstab
+  blockinfile:
+    path: /etc/fstab
+    block: |
+      {% for MOUNT in NFS_MOUNTS %}
+      {{ NFS_SERVER }}:{{ MOUNT.source }} {{ MOUNT.dest }} nfs {{ MOUNT.options }} 0 0
+      {% endfor %}
+  become: yes
+
+- name: Test NFS mounts
+  command:
+    cmd: mount -a
+  become: yes
+  register: mount_test
+  failed_when: mount_test.rc != 0
+
+- name: Start and Enable Fail2ban
+  service:
+    name: fail2ban
+    state: started
+    enabled: yes
+  become: yes
+
+- name: Add user to docker group
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+  become: yes
+  when: ansible_os_family == "Debian"
+
+- name: Ensure Docker service is started and enabled
+  service:
+    name: docker
+    state: started
+    enabled: yes
+  become: yes
+
+- name: Set docker socket permissions
+  file:
+    path: /var/run/docker.sock
+    group: docker
+    mode: '0660'
+  become: yes
+
+- name: Create a user-defined bridge network for service discovery
+  docker_network:
+    name: internal-net
+    driver_options:
+      com.docker.network.bridge.name: internal-net
+    ipam_config:
+      - subnet: '172.25.0.0/16'
+    state: present
+
+- name: Ensure Home-Assistant-DB container is running
+  docker_container:
+    name: home-assistant-db
+    image: linuxserver/mariadb:latest
+    env:
+      PUID: "{{ UID | string }}"
+      PGID: "{{ GID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+      MYSQL_ROOT_PASSWORD: "{{ HA_MYSQL_ROOT_PASSWORD }}"
+      MYSQL_DATABASE: hadb
+      MYSQL_USER: ha
+      MYSQL_PASSWORD: "{{ HA_MYSQL_PASSWORD }}"
+      MYSQL_LOG_CONSOLE: "true"
+    volumes:
+      - "{{ CFG_MOUNT }}/home-assistant-db:/config"
+    networks:
+      - name: internal-net
+    restart_policy: always
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+  notify: Restart Home-Assistant-DB Container
+
+- name: Wait for Home-Assistant-DB to be healthy
+  command: "docker inspect --format='{%raw%}{{.State.Health.Status}}{%endraw%}' home-assistant-db"
+  register: result
+  until: result.stdout == "healthy"
+  retries: 30 
+  delay: 10
+  changed_when: false
+
+- name: Ensure Home-Assistant container is running
+  docker_container:
+    name: home-assistant
+    image: homeassistant/home-assistant:latest
+    env:
+      PUID: "{{ UID | string }}"
+      PGID: "{{ GID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/home-assistant-cfg:/config"
+      - "/run/dbus:/run/dbus:ro"
+    ports:
+      - "8123:8123"
+    networks:
+      - name: internal-net
+    restart_policy: always
+  notify: Restart Home-Assistant Container
+
+- name: Ensure Linkding Docker container is running
+  docker_container:
+    name: linkding
+    image: sissbruecker/linkding:latest
+    env:
+      LD_HOST_PORT: "9090"
+      LD_HOST_DATA_DIR: "./data"
+      # Option to disable background tasks
+      LD_DISABLE_BACKGROUND_TASKS: "False"
+      # Option to disable URL validation for bookmarks completely
+      LD_DISABLE_URL_VALIDATION: "False"
+    volumes:
+      - "{{ CFG_MOUNT }}/linkding-cfg:/etc/linkding/data"
+    ports:
+      - "9090:9090"
+    networks:
+      - name: internal-net
+    restart_policy: always
+  notify: Restart Linkding Container
+
+- name: Ensure Duplicacy Docker container is running
+  docker_container:
+    name: duplicacy
+    image: saspus/duplicacy-web:latest
+    env:
+      PUID: "{{ UID | string }}"
+      PGID: "{{ GID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/duplicacy-cfg:/config"
+      - "{{ CFG_MOUNT }}/duplicacy-cfg/cache:/cache"      
+      - "{{ CFG_MOUNT }}/logs/duplicacy:/logs"
+      - "/nfs/backup:/backup:ro"
+    ports:
+      - "8233:3875"
+    networks:
+      - name: internal-net
+    restart_policy: always
+  notify: Restart Duplicacy Container
+
+- name: Ensure Prowlarr Docker container is running
+  docker_container:
+    name: prowlarr
+    image: linuxserver/prowlarr
+    env:
+      PUID: "{{ UID | string }}"
+      PGID: "{{ GID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/prowlarr-cfg:/config"
+    ports:
+      - "9696:9696"
+    networks:
+      - name: internal-net
+    restart_policy: always
+  notify: Restart Prowlarr Container
+
+- name: Ensure Radarr Docker container is running
+  docker_container:
+    name: radarr
+    image: linuxserver/radarr:latest
+    env:
+      PUID: "{{ UID | string }}"
+      PGID: "{{ GID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ RADARR_MOUNT }}"
+      - "{{ CFG_MOUNT }}/radarr-cfg:/config"
+    ports:
+      - "7878:7878"
+    networks:
+      - name: internal-net      
+    restart_policy: always
+  notify: Restart Radarr Container
+
+- name: Ensure Sonarr Docker container is running
+  docker_container:
+    name: sonarr
+    image: linuxserver/sonarr:latest
+    env:
+      PUID: "{{ UID | string }}"
+      PGID: "{{ GID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ SONARR_MOUNT }}"
+      - "{{ CFG_MOUNT }}/sonarr-cfg:/config"
+    ports:
+      - "8989:8989"
+    networks:
+      - name: internal-net      
+    restart_policy: always
+  notify: Restart Sonarr Container
+
+- name: Ensure Overseerr Docker container is running
+  docker_container:
+    name: overseerr
+    image: linuxserver/overseerr:latest
+    env:
+      PUID: "{{ UID | string }}"
+      PGID: "{{ GID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/overseerr-cfg:/config"
+    ports:
+      - "5055:5055"
+    networks:
+      - name: internal-net      
+    restart_policy: always
+  notify: Restart Overseerr Container  
+  
+- name: Ensure Project Send DB Docker container is running
+  docker_container:
+    name: projectsend-db
+    hostname: projectsend-db
+    image: mariadb:10
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --max-connections=1000
+    env:
+      MYSQL_ROOT_PASSWORD: "{{ PROJECTSEND_MYSQL_ROOT_PASSWORD }}"
+      MYSQL_USER: projectsend
+      MYSQL_PASSWORD: "{{ PROJECTSEND_DATABASE_PASSWORD }}"
+      MYSQL_DATABASE: projectsend
+    volumes:
+      - "{{ CFG_MOUNT }}/projectsend-db-cfg:/var/lib/mysql"
+    networks:
+      - name: internal-net      
+    restart_policy: always
+  notify: Restart Project Send DB Container   
+
+- name: Ensure Project Send Docker container is running
+  docker_container:
+    name: projectsend
+    image: linuxserver/projectsend
+    env:
+      PUID: "{{ UID | string }}"
+      PGID: "{{ GID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/projectsend-cfg/config:/config"
+      - "{{ CFG_MOUNT }}/projectsend-cfg/data:/data"
+    ports:
+      - "8122:80"
+    networks:
+      - name: internal-net      
+    restart_policy: always
+  notify: Restart Project Send Container 
+
+- name: Ensure Changedetection Docker container is running
+  docker_container:
+    name: changedetection
+    image: dgtlmoon/changedetection.io:latest
+    volumes:
+      - "{{ CFG_MOUNT }}/changedetection-cfg:/datastore"
+    ports:
+      - "5000:5000"
+    networks:
+      - name: internal-net      
+    restart_policy: always
+  notify: Restart Changedetection Container
+
+- name: Ensure Babybuddy Docker container is running
+  docker_container:
+    name: babybuddy
+    image: lscr.io/linuxserver/babybuddy:latest
+    env:
+      PUID: "{{ UID | string }}"
+      PGID: "{{ GID | string }}"
+      TZ: "{{ TIME_ZONE }}"    
+    volumes:
+      - "{{ CFG_MOUNT }}/babybuddy-cfg:/config"
+    ports:
+      - "8000:8000"
+    networks:
+      - name: internal-net      
+    restart_policy: always
+  notify: Restart Babybuddy Container
+
+- name: Ensure Tautulli Docker container is running
+  docker_container:
+    name: tautulli
+    image: linuxserver/tautulli:latest
+    env:
+      PUID: "{{ UID | string }}"
+      PGID: "{{ GID | string }}"
+      TZ: "{{ TIME_ZONE }}"    
+    volumes:
+      - "{{ CFG_MOUNT }}/tautulli-cfg:/config"
+    ports:
+      - "8181:8181"
+    networks:
+      - name: internal-net      
+    restart_policy: always
+  notify: Restart Tautulli Container
+
+- name: Ensure Homepage Docker container is running
+  docker_container:
+    name: homepage
+    image: ghcr.io/benphelps/homepage:latest
+    env:
+      PUID: "{{ UID | string }}"
+      PGID: "{{ GID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/homepage-cfg:/app/config"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    ports:
+      - "3000:3000"
+    networks:
+      - name: internal-net      
+    restart_policy: always
+  notify: Restart Homepage Container
+
+- name: Allow SSH access through UFW
+  ufw:
+    rule: allow
+    name: OpenSSH
+  become: yes
+
+- name: Allow traffic on port 80 for Nginx
+  ufw:
+    rule: allow
+    port: '80'
+    proto: tcp
+  become: yes
+
+- name: Allow traffic on port 443 for Nginx
+  ufw:
+    rule: allow
+    port: '443'
+    proto: tcp
+  become: yes
+
+- name: Enable ufw
+  ufw:
+    state: enabled
+  become: yes
+
+- name: Ensure the /etc/letsencrypt/live/{{ DNS_DOMAIN }} directory exists
+  file:
+    path: /etc/letsencrypt/live/{{ DNS_DOMAIN }} 
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  become: yes
+
+- name: Ensure the /etc/letsencrypt/archive/{{ DNS_DOMAIN }} directory exists
+  file:
+    path: /etc/letsencrypt/archive/{{ DNS_DOMAIN }} 
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  become: yes
+
+- name: Copy cert files to target
+  copy:
+    src: "/etc/letsencrypt/archive/{{ DNS_DOMAIN }}/{{ item.src }}"
+    dest: "/etc/letsencrypt/archive/{{ DNS_DOMAIN }}/{{ item.dest }}"
+    mode: "{{ item.mode }}"
+    owner: root
+    group: root
+  loop:
+    - { src: 'cert1.pem', dest: 'cert1.pem', mode: '0644' }
+    - { src: 'chain1.pem', dest: 'chain1.pem', mode: '0644' }
+    - { src: 'fullchain1.pem', dest: 'fullchain1.pem', mode: '0644' }
+    - { src: 'privkey1.pem', dest: 'privkey1.pem', mode: '0600' }
+  become: yes
+
+- name: Ensure symlinks for /etc/letsencrypt/live/{{ DNS_DOMAIN }} are set
+  file:
+    src: "/etc/letsencrypt/archive/{{ DNS_DOMAIN }}/{{ item.src }}"
+    dest: "/etc/letsencrypt/live/{{ DNS_DOMAIN }}/{{ item.dest }}"
+    state: link
+    owner: root
+    group: root
+  loop:
+    - { src: 'cert1.pem', dest: 'cert.pem' }
+    - { src: 'chain1.pem', dest: 'chain.pem' }
+    - { src: 'fullchain1.pem', dest: 'fullchain.pem' }
+    - { src: 'privkey1.pem', dest: 'privkey.pem' }
+  become: yes
+
+- name: Ensure /etc/nginx/ssl directory exists
+  file:
+    path: /etc/nginx/ssl
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  become: yes
+
+- name: Generate strong DH parameters
+  command:
+    cmd: openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
+    creates: /etc/nginx/ssl/dhparam.pem
+  become: yes
+
+- name: Update Nginx configuration using template
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+  become: yes
+  notify: Restart Nginx
+
+- name: Place Nginx config for services
+  template:
+    src: "{{ item }}.conf.j2"
+    dest: "/etc/nginx/sites-available/{{ item }}.conf"
+  loop:
+    - dsm
+    - surveillance
+    - ha
+    - links
+    - duplicacy
+    - prowlarr  
+    - radarr
+    - sonarr
+    - overseerr
+    - send
+    - cd
+    - babybuddy
+    - tautulli
+    - home
+  become: yes
+  notify: Restart Nginx
+
+- name: Symlink Nginx config to sites-enabled for services
+  file:
+    src: "/etc/nginx/sites-available/{{ item }}.conf"
+    dest: "/etc/nginx/sites-enabled/{{ item }}.conf"
+    state: link
+  loop:
+    - dsm
+    - surveillance
+    - ha
+    - links
+    - duplicacy
+    - prowlarr  
+    - radarr
+    - sonarr
+    - overseerr
+    - send
+    - cd
+    - babybuddy
+    - tautulli
+    - home
+  become: yes
+  notify: Restart Nginx
+
+- name: Ensure default site is not enabled
+  file:
+    path: "/etc/nginx/sites-enabled/default"
+    state: absent
+  become: yes
+  notify: Restart Nginx 
+
+- name: Ensure Nginx is running and enabled at boot
+  service:
+    name: nginx
+    state: started
+    enabled: yes
+  become: yes
+
+- name: Set up cron job for system package updates
+  cron:
+    name: "System Package Updates"
+    hour: "4"
+    minute: "0"
+    job: "apt-get update && apt-get upgrade -y"
+  become: yes
+
+- name: Check if new certs are in place
+  stat:
+    path: /etc/nginx/ssl/fullchain.pem
+  register: cert_stat
+  become: yes
+
+- name: Reload Nginx if certs are recently renewed
+  service:
+    name: nginx
+    state: reloaded
+  when: cert_stat.stat.exists and cert_stat.stat.mtime < 86400

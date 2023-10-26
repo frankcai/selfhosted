@@ -1,0 +1,14 @@
+options {
+    directory "/var/cache/bind";
+    listen-on-v6 { any; };
+
+    // Forward unresolved queries to Google DNS
+    forwarders {
+        8.8.8.8; // Google's primary DNS (IPv4)
+        8.8.4.4; // Google's secondary DNS (IPv4)
+        2001:4860:4860::8888; // Google's primary DNS (IPv6)
+        2001:4860:4860::8844; // Google's secondary DNS (IPv6)        
+    };
+    forward only;
+    dnssec-validation no;
+};

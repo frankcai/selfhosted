@@ -1,0 +1,17 @@
+$TTL    604800
+@       IN      SOA     ns.{{ DNS_DOMAIN }}. admin.{{ DNS_DOMAIN }}. (
+                     {{ serial }}         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Negative Cache TTL
+
+@               IN      NS      ns.{{ DNS_DOMAIN }}.
+@               IN      A       192.168.168.55
+{% for subdomain, ip in LOCAL_DOMAINS.items() %}
+{% if subdomain == "wildcard." + DNS_DOMAIN %}
+*               IN      A       {{ ip }}
+{% else %}
+{{ '%-15s' % (subdomain | regex_replace('\\.' + DNS_DOMAIN, '')) }} IN      A       {{ ip }}
+{% endif %}
+{% endfor %}
