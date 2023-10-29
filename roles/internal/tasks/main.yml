@@ -328,7 +328,7 @@
 - name: Ensure Homepage Docker container is running
   docker_container:
     name: homepage
-    image: ghcr.io/benphelps/homepage:latest
+    image: ghcr.io/gethomepage/homepage:latest
     env:
       PUID: "{{ UID | string }}"
       PGID: "{{ GID | string }}"
