@@ -81,6 +81,106 @@
       - subnet: '172.25.0.0/16'
     state: present
 
+- name: Ensure Paperless-redis container is running
+  docker_container:
+    name: paperless-redis
+    image: docker.io/library/redis:7
+    volumes:
+      - "{{ CFG_MOUNT }}/paperless-redis:/redisdata"
+    networks:
+      - name: internal-net
+    restart_policy: unless-stopped
+  notify: Restart Paperless-redis Container
+
+- name: Ensure Paperless-gotenberg container is running
+  docker_container:
+    name: paperless-gotenberg
+    image: docker.io/gotenberg/gotenberg:7.8
+    command:
+      - "gotenberg"
+      - "--chromium-disable-javascript=true"
+      - "--chromium-allow-list=file:///tmp/.*"
+    networks:
+      - name: internal-net
+    restart_policy: unless-stopped
+  notify: Restart Paperless-gotenberg Container
+
+- name: Ensure Paperless-tika container is running
+  docker_container:
+    name: paperless-tika
+    image: ghcr.io/paperless-ngx/tika:latest
+    networks:
+      - name: internal-net
+    restart_policy: unless-stopped
+  notify: Restart Paperless-tika Container
+
+- name: Ensure Paperless-DB container is running
+  docker_container:
+    name: paperless-db
+    image: linuxserver/mariadb:latest
+    env:
+      PUID: "{{ UID | string }}"
+      PGID: "{{ GID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+      MYSQL_ROOT_PASSWORD: "{{ PL_MYSQL_ROOT_PASSWORD }}"
+      MYSQL_DATABASE: pldb
+      MYSQL_USER: pl
+      MYSQL_PASSWORD: "{{ PL_MYSQL_PASSWORD }}"
+      MYSQL_LOG_CONSOLE: "true"
+    volumes:
+      - "{{ CFG_MOUNT }}/paperless-db:/config"
+    networks:
+      - name: internal-net
+    restart_policy: always
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+  notify: Restart Paperless-DB Container
+
+- name: Wait for Paperless-DB to be healthy
+  command: "docker inspect --format='{%raw%}{{.State.Health.Status}}{%endraw%}' paperless-db"
+  register: result
+  until: result.stdout == "healthy"
+  retries: 30 
+  delay: 10
+  changed_when: false
+
+- name: Ensure Paperless Docker container is running
+  docker_container:
+    name: paperless
+    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    env:
+      USERMAP_UID: "{{ UID | string }}"
+      USERMAP_GID: "{{ GID | string }}"
+      PAPERLESS_URL: "{{ PL_URL }}"
+      PAPERLESS_LOGGING_DIR: "/logs"
+      PAPERLESS_REDIS: "redis://paperless-redis:6379"
+      PAPERLESS_DBENGINE: "mariadb"
+      PAPERLESS_DBHOST: "paperless-db"
+      PAPERLESS_DBNAME: "pldb"      
+      PAPERLESS_DBUSER: "pl"
+      PAPERLESS_DBPASS: "{{ PL_MYSQL_PASSWORD }}"
+      PAPERLESS_DBPORT: "3306"
+      PAPERLESS_ADMIN_USER: "{{ PL_ADMIN_USER }}"
+      PAPERLESS_ADMIN_PASSWORD: "{{ PL_ADMIN_PASSWORD }}"
+      PAPERLESS_TIKA_ENABLED: "1"
+      PAPERLESS_TIKA_GOTENBERG_ENDPOINT: "http://paperless-gotenberg:3000"
+      PAPERLESS_TIKA_ENDPOINT: "http://paperless-tika:9998"
+    volumes:
+      - "{{ CFG_MOUNT }}/paperless-cfg/data:/data"
+      - "{{ CFG_MOUNT }}/paperless-cfg/media:/media"      
+      - "{{ CFG_MOUNT }}/paperless-cfg/export:/export"
+      - "{{ CFG_MOUNT }}/paperless-cfg/consume:/consume"
+      - "{{ CFG_MOUNT }}/logs/paperless:/logs"      
+    ports:
+      - "8355:8000"
+    networks:
+      - name: internal-net
+    restart_policy: unless-stopped
+  notify: Restart Paperless Container
+
 - name: Ensure Home-Assistant-DB container is running
   docker_container:
     name: home-assistant-db
@@ -443,6 +543,7 @@
   loop:
     - dsm
     - surveillance
+    - paperless
     - ha
     - links
     - duplicacy
@@ -466,6 +567,7 @@
   loop:
     - dsm
     - surveillance
+    - paperless
     - ha
     - links
     - duplicacy

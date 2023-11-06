@@ -4,6 +4,36 @@
     name: nginx
     state: restarted
   become: yes
+- name: Restart Paperless-DB Container
+  docker_container:
+    name: paperless-db
+    state: started
+    restart: yes
+  become: yes    
+- name: Restart Paperless Container
+  docker_container:
+    name: paperless
+    state: started
+    restart: yes
+  become: yes  
+- name: Restart Paperless-tika Container
+  docker_container:
+    name: paperless-tika
+    state: started
+    restart: yes
+  become: yes  
+- name: Restart Paperless-gotenberg Container
+  docker_container:
+    name: paperless-gotenberg
+    state: started
+    restart: yes
+  become: yes  
+- name: Restart Paperless-redis Container
+  docker_container:
+    name: paperless-redis
+    state: started
+    restart: yes
+  become: yes          
 - name: Restart Home-Assistant-DB Container
   docker_container:
     name: home-assistant-db
