@@ -169,6 +169,8 @@
       PAPERLESS_TIKA_GOTENBERG_ENDPOINT: "http://paperless-gotenberg:3000"
       PAPERLESS_TIKA_ENDPOINT: "http://paperless-tika:9998"
       PAPERLESS_CONSUMER_POLLING: "30"
+      PAPERLESS_FILENAME_FORMAT: "{created_year}/{correspondent}/{title}"
+      PAPERLESS_FILENAME_FORMAT_REMOVE_NONE: "True"
     volumes:
       - "{{ CFG_MOUNT }}/paperless-cfg/data:/usr/src/paperless/data"
       - "{{ CFG_MOUNT }}/paperless-cfg/media:/usr/src/paperless/media"
