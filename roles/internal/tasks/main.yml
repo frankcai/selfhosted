@@ -168,11 +168,12 @@
       PAPERLESS_TIKA_ENABLED: "1"
       PAPERLESS_TIKA_GOTENBERG_ENDPOINT: "http://paperless-gotenberg:3000"
       PAPERLESS_TIKA_ENDPOINT: "http://paperless-tika:9998"
+      PAPERLESS_CONSUMER_POLLING: "30"
     volumes:
-      - "{{ CFG_MOUNT }}/paperless-cfg/data:/data"
-      - "{{ CFG_MOUNT }}/paperless-cfg/media:/media"      
-      - "{{ CFG_MOUNT }}/paperless-cfg/export:/export"
-      - "{{ CFG_MOUNT }}/paperless-cfg/consume:/consume"
+      - "{{ CFG_MOUNT }}/paperless-cfg/data:/usr/src/paperless/data"
+      - "{{ CFG_MOUNT }}/paperless-cfg/media:/usr/src/paperless/media"
+      - "{{ CFG_MOUNT }}/paperless-cfg/export:/usr/src/paperless/export"
+      - "{{ CFG_MOUNT }}/paperless-cfg/consume:/usr/src/paperless/consume"
       - "{{ CFG_MOUNT }}/logs/paperless:/logs"      
     ports:
       - "8355:8000"
