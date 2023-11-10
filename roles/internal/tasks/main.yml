@@ -545,6 +545,7 @@
     dest: "/etc/nginx/sites-available/{{ item }}.conf"
   loop:
     - dsm
+    - qbt
     - surveillance
     - paperless
     - ha
@@ -569,6 +570,7 @@
     state: link
   loop:
     - dsm
+    - qbt
     - surveillance
     - paperless
     - ha
