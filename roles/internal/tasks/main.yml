@@ -438,6 +438,7 @@
       TZ: "{{ TIME_ZONE }}"
     volumes:
       - "{{ CFG_MOUNT }}/homepage-cfg:/app/config"
+      - "{{ CFG_MOUNT }}/homepage-icons:/app/public/icons"      
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
     ports:
       - "3000:3000"
