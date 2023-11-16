@@ -118,3 +118,9 @@
     state: started
     restart: yes
   become: yes        
+- name: Restart Watchtower Container
+  docker_container:
+    name: watchtower
+    state: started
+    restart: yes
+  become: yes         

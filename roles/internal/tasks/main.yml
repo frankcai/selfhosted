@@ -447,6 +447,17 @@
     restart_policy: always
   notify: Restart Homepage Container
 
+- name: Ensure Watchtower Docker container is running
+  docker_container:
+    name: watchtower
+    image: containrrr/watchtower:latest
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"    
+    networks:
+      - name: internal-net
+    restart_policy: always
+  notify: Restart Watchtower Container  
+
 - name: Allow SSH access through UFW
   ufw:
     rule: allow
