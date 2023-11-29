@@ -10,7 +10,6 @@
       - certbot
       - python3-certbot-nginx
       - python3-certbot-dns-cloudflare
-      - fail2ban
     state: present
   when: ansible_os_family == "Debian"
   become: yes
@@ -29,14 +28,7 @@
   loop: "{{ dir_status.results }}"
   when: item.stat.exists == false
   become: yes
-
-- name: Start and Enable Fail2ban
-  service:
-    name: fail2ban
-    state: started
-    enabled: yes
-  become: yes
-
+  
 - name: Add NFS mounts to /etc/fstab
   blockinfile:
     path: /etc/fstab
