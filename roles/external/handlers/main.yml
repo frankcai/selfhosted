@@ -15,6 +15,12 @@
     state: started
     restart: yes
   become: yes  
+- name: Restart ChatGPT Next Web Container
+  docker_container:
+    name: chatgpt-next-web
+    state: started
+    restart: yes
+  become: yes  
 - name: Restart Plex Container
   docker_container:
     name: plex
