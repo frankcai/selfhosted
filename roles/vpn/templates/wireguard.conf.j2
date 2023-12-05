@@ -1,0 +1,11 @@
+[Interface]
+Address = {{ WIREGUARD_ADDRESS }}
+PrivateKey = {{ WIREGUARD_PRIVATE_KEY }}
+ListenPort = {{ WIREGUARD_LISTEN_PORT }}
+MTU = 1350
+
+[Peer]
+PublicKey = {{ WIREGUARD_PEER_PUBLIC_KEY }}
+EndPoint = {{ WIREGUARD_ENDPOINT }}
+AllowedIPs = {{ WIREGUARD_ALLOWED_IPS }}
+PersistentKeepalive = 25

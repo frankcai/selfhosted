@@ -1,0 +1,35 @@
+---
+- name: Install required packages
+  apt:
+    name:
+      - wireguard
+      - ufw
+    state: present
+  when: ansible_os_family == "Debian"
+  become: yes
+
+- name: Allow SSH access through UFW
+  ufw:
+    rule: allow
+    name: OpenSSH
+  become: yes
+
+- name: Enable ufw
+  ufw:
+    state: enabled
+  become: yes
+
+- name: Configure WireGuard
+  template:
+    src: wireguard.conf.j2
+    dest: /etc/wireguard/wg0.conf
+  notify:
+    - Restart WireGuard  
+  become: yes
+
+- name: Enable IPv4 forwarding
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    state: present
+    reload: yes    

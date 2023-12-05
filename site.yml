@@ -1,8 +1,12 @@
 ---
-#- hosts: vpn
-#  roles:
-#    - vpn
-#
+- hosts: vpn
+  vars_files:
+    - secrets.yml
+  vars:
+    ansible_host: "{{ VPN_HOST }}"    
+  roles:
+    - vpn
+
 #- hosts: monitoring
 #  roles:
 #    - monitoring
