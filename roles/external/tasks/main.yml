@@ -103,21 +103,6 @@
     restart_policy: always
   notify: Restart Vaultwarden Container
 
-- name: Ensure ChatGPT Next Web Docker container is running
-  docker_container:
-    name: chatgpt-next-web
-    image: yidadaa/chatgpt-next-web:latest
-    env:
-      OPENAI_API_KEY: "{{ OPENAI_API_KEY }}"
-      CODE: "{{ CODE }}"
-      HIDE_USER_API_KEY: "1"
-      ENABLE_BALANCE_QUERY: "1"
-      CUSTOM_MODELS: "-gpt-4-0314,-gpt-4-0613,-gpt-4-32k"
-    ports:
-      - "3000:3000"
-    restart_policy: always
-  notify: Restart ChatGPT Next Web Container
-
 - name: Ensure Watchtower Docker container is running
   docker_container:
     name: watchtower
