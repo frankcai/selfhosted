@@ -22,7 +22,10 @@
   vars_files:
     - secrets.yml
   vars:
-    ansible_host: "{{ EXTERNAL_HOST }}"       
+    ansible_host: "{{ EXTERNAL_HOST }}"    
+  pre_tasks:
+    - set_fact:
+        ansible_host: "{{ EXTERNAL_HOST }}"
   roles:
     - external
 - hosts: internal

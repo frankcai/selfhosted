@@ -20,7 +20,10 @@ Copy the public SSH key of the Ansible control server to each of the nodes.
 ```bash
 ssh-copy-id user@host_ip
 ```
-### 2. Sudo Access Without Password:
+### 2. Disable SSH password authentication
+
+
+### 3. Sudo Access Without Password:
 
 #### Edit the sudoers file:
 Use the visudo command instead of directly editing the /etc/sudoers file. This prevents potential syntax errors.

@@ -155,15 +155,24 @@
       --email {{ LETSENCRYPT_EMAIL }}
       --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini
       -d {{ DNS_DOMAIN }} -d *.{{ DNS_DOMAIN }}
+      --renew-by-default
     creates: /etc/letsencrypt/live/{{ DNS_DOMAIN }}/fullchain.pem
   become: yes
   when: ansible_os_family == "Debian"
 
-- name: Check if certs were recently renewed
+- name: Get stat of remote file
   stat:
     path: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/fullchain.pem
   register: cert_stat
   become: yes
+
+- name: Get stat of local file
+  stat:
+    path: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/fullchain.pem
+  register: local_cert_stat
+  delegate_to: localhost
+  become: yes
+  ignore_errors: yes
 
 - block:
   - name: Ensure the destination directory exists on local Ansible controller
@@ -181,10 +190,9 @@
       src: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/
       dest: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/
       mode: pull
-    delegate_to: localhost
     become: yes
 
-  when: cert_stat.stat.exists and cert_stat.stat.mtime < 86400
+  when: (not local_cert_stat.stat.exists) or (cert_stat.stat.exists and cert_stat.stat.mtime > local_cert_stat.stat.mtime)
 
 - name: Ensure /etc/nginx/ssl directory exists
   file:
