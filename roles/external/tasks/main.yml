@@ -191,6 +191,7 @@
       dest: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/
       mode: pull
     become: yes
+    notify: Restart Nginx
 
   when: (not local_cert_stat.stat.exists) or (cert_stat.stat.exists and cert_stat.stat.mtime > local_cert_stat.stat.mtime)
 
