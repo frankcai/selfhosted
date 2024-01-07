@@ -514,7 +514,8 @@
     - { src: 'fullchain.pem', dest: 'fullchain.pem', mode: '0644' }
     - { src: 'privkey.pem', dest: 'privkey.pem', mode: '0600' }
   become: yes
-
+  notify: Restart Nginx 
+  
 - name: Ensure symlinks for /etc/letsencrypt/live/{{ DNS_DOMAIN }} are set
   file:
     src: "/etc/letsencrypt/archive/{{ DNS_DOMAIN }}/{{ item.src }}"
@@ -621,15 +622,3 @@
     minute: "0"
     job: "apt-get update && apt-get upgrade -y"
   become: yes
-
-- name: Check if new certs are in place
-  stat:
-    path: /etc/nginx/ssl/fullchain.pem
-  register: cert_stat
-  become: yes
-
-- name: Reload Nginx if certs are recently renewed
-  service:
-    name: nginx
-    state: reloaded
-  when: cert_stat.stat.exists and cert_stat.stat.mtime < 86400
