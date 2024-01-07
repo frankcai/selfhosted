@@ -1,0 +1,14 @@
+[Interface]
+Address = {{ WIREGUARD_ADDRESS }}
+PrivateKey = {{ WIREGUARD_PRIVATE_KEY }}
+ListenPort = {{ WIREGUARD_PORT }}
+MTU = 1350
+
+{% if WIREGUARD_PEERS %}
+{% for PEER in WIREGUARD_PEERS %}
+[Peer]
+PublicKey = {{ PEER.PUBLIC_KEY }}
+AllowedIPs = {{ PEER.ALLOWED_IPS }}
+PersistentKeepalive = 25
+{% endfor %}
+{% endif %}

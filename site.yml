@@ -35,3 +35,10 @@
     ansible_host: "{{ INTERNAL_HOST }}"         
   roles:
     - internal
+- hosts: vps
+  vars_files:
+    - secrets.yml
+  vars:
+    ansible_host: "{{ VPS_HOST }}"         
+  roles:
+    - vps

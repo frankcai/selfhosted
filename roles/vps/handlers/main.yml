@@ -1,0 +1,12 @@
+---
+- name: Restart Nginx
+  service:
+    name: nginx
+    state: restarted
+  become: yes
+- name: Restart WireGuard
+  systemd:
+    name: wg-quick@wg0
+    state: restarted
+    enabled: yes
+  become: yes
