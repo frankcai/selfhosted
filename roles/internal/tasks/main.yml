@@ -453,6 +453,7 @@
     image: containrrr/watchtower:latest
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"    
+    command: --cleanup      
     networks:
       - name: internal-net
     restart_policy: always
