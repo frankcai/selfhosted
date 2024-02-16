@@ -428,6 +428,48 @@
     restart_policy: always
   notify: Restart Tautulli Container
 
+- name: Ensure Bookstack DB Docker container is running
+  docker_container:
+    name: bookstack_db
+    image: lscr.io/linuxserver/mariadb:latest
+    env:
+      PUID: "{{ UID | string }}"
+      PGID: "{{ GID | string }}"
+      TZ: "{{ TIME_ZONE }}"    
+      MYSQL_ROOT_PASSWORD: "{{ BOOKSTACK_MYSQL_ROOT_PASSWORD }}"
+      MYSQL_DATABASE: bookstackapp
+      MYSQL_USER: bookstack
+      MYSQL_PASSWORD: "{{ BOOKSTACK_DATABASE_PASSWORD }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/bookstack-db-cfg:/config"
+    networks:
+      - name: internal-net      
+    restart_policy: unless-stopped
+  notify: Restart Bookstack DB Container
+
+- name: Ensure Bookstack Docker container is running
+  docker_container:
+    name: bookstack
+    image: lscr.io/linuxserver/bookstack:latest
+    env:
+      PUID: "{{ UID | string }}"
+      PGID: "{{ GID | string }}"
+      TZ: "{{ TIME_ZONE }}"    
+      APP_URL: "https://bookstack.{{ DNS_DOMAIN }}"
+      DB_HOST: bookstack_db
+      DB_PORT: "3306"
+      DB_USER: bookstack
+      DB_PASS: "{{ BOOKSTACK_DATABASE_PASSWORD }}"
+      DB_DATABASE: bookstackapp
+    volumes:
+      - "{{ CFG_MOUNT }}/bookstack-cfg:/config"
+    ports:
+      - "6875:80"      
+    networks:
+      - name: internal-net      
+    restart_policy: unless-stopped
+  notify: Restart Bookstack Container
+
 - name: Ensure Homepage Docker container is running
   docker_container:
     name: homepage
@@ -573,6 +615,7 @@
     - cd
     - babybuddy
     - tautulli
+    - bookstack
     - home
   become: yes
   notify: Restart Nginx
@@ -598,6 +641,7 @@
     - cd
     - babybuddy
     - tautulli
+    - bookstack    
     - home
   become: yes
   notify: Restart Nginx

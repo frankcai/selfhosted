@@ -112,6 +112,18 @@
     state: started
     restart: yes
   become: yes      
+- name: Restart Bookstack DB Container
+  docker_container:
+    name: bookstack_db
+    state: started
+    restart: yes
+  become: yes   
+- name: Restart Bookstack Container
+  docker_container:
+    name: bookstack
+    state: started
+    restart: yes
+  become: yes       
 - name: Restart Homepage Container
   docker_container:
     name: homepage
