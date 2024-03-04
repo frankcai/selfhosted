@@ -40,10 +40,10 @@
     owner: root
     group: root
   loop:
-    - { src: 'cert.pem', dest: 'cert.pem', mode: '0644' }
-    - { src: 'chain.pem', dest: 'chain.pem', mode: '0644' }
-    - { src: 'fullchain.pem', dest: 'fullchain.pem', mode: '0644' }
-    - { src: 'privkey.pem', dest: 'privkey.pem', mode: '0600' }
+    - { src: 'cert1.pem', dest: 'cert1.pem', mode: '0644' }
+    - { src: 'chain1.pem', dest: 'chain1.pem', mode: '0644' }
+    - { src: 'fullchain1.pem', dest: 'fullchain1.pem', mode: '0644' }
+    - { src: 'privkey1.pem', dest: 'privkey1.pem', mode: '0600' }
   become: yes
 
 - name: Ensure symlinks for /etc/letsencrypt/live/{{ DNS_DOMAIN }} are set
@@ -54,10 +54,10 @@
     owner: root
     group: root
   loop:
-    - { src: 'cert.pem', dest: 'cert.pem' }
-    - { src: 'chain.pem', dest: 'chain.pem' }
-    - { src: 'fullchain.pem', dest: 'fullchain.pem' }
-    - { src: 'privkey.pem', dest: 'privkey.pem' }
+    - { src: 'cert1.pem', dest: 'cert.pem' }
+    - { src: 'chain1.pem', dest: 'chain.pem' }
+    - { src: 'fullchain1.pem', dest: 'fullchain.pem' }
+    - { src: 'privkey1.pem', dest: 'privkey.pem' }
   become: yes
 
 - name: Deploy WireGuard Configuration

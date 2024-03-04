@@ -156,7 +156,7 @@
       --email {{ LETSENCRYPT_EMAIL }}
       --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini
       -d {{ DNS_DOMAIN }} -d *.{{ DNS_DOMAIN }}
-      --force-renewal
+      --keep-until-expiring
   become: yes
   when: ansible_os_family == "Debian"
   register: certbot_output
@@ -164,13 +164,13 @@
 
 - name: Get stat of remote file
   stat:
-    path: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/fullchain.pem
+    path: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/fullchain1.pem
   register: cert_stat
   become: yes
 
 - name: Get stat of local file
   stat:
-    path: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/fullchain.pem
+    path: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/fullchain1.pem
   register: local_cert_stat
   delegate_to: localhost
   become: yes
