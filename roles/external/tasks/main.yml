@@ -149,17 +149,18 @@
   become: yes
   when: ansible_os_family == "Debian"
 
-- name: Obtain wildcard SSL certificates from Let's Encrypt using Cloudflare
+- name: Obtain or renew wildcard SSL certificates from Let's Encrypt using Cloudflare
   command:
     cmd: >
       certbot certonly --agree-tos --non-interactive 
       --email {{ LETSENCRYPT_EMAIL }}
       --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini
       -d {{ DNS_DOMAIN }} -d *.{{ DNS_DOMAIN }}
-      --renew-by-default
-    creates: /etc/letsencrypt/live/{{ DNS_DOMAIN }}/fullchain.pem
+      --force-renewal
   become: yes
   when: ansible_os_family == "Debian"
+  register: certbot_output
+  changed_when: "'Congratulations' in certbot_output.stdout"
 
 - name: Get stat of remote file
   stat:
