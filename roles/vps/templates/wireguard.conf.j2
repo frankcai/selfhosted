@@ -1,11 +1,11 @@
 [Interface]
-Address = {{ WIREGUARD_ADDRESS }}
-PrivateKey = {{ WIREGUARD_PRIVATE_KEY }}
-ListenPort = {{ WIREGUARD_PORT }}
+Address = {{ WG_VPS_ADDRESS }}
+PrivateKey = {{ WG_VPS_PRIVATE_KEY }}
+ListenPort = {{ WG_VPS_PORT }}
 MTU = 1350
 
-{% if WIREGUARD_PEERS %}
-{% for PEER in WIREGUARD_PEERS %}
+{% if WG_VPS_PEERS %}
+{% for PEER in WG_VPS_PEERS %}
 [Peer]
 PublicKey = {{ PEER.PUBLIC_KEY }}
 AllowedIPs = {{ PEER.ALLOWED_IPS }}

@@ -1,11 +1,13 @@
 [Interface]
-Address = {{ WIREGUARD_ADDRESS }}
-PrivateKey = {{ WIREGUARD_PRIVATE_KEY }}
-ListenPort = {{ WIREGUARD_LISTEN_PORT }}
+Address = {{ WG_VPN_ADDRESS }}
+PrivateKey = {{ WG_VPN_PRIVATE_KEY }}
+ListenPort = {{ WG_VPN_PORT }}
 MTU = 1350
 
+{% for peer in WG_VPN_PEERS %}
 [Peer]
-PublicKey = {{ WIREGUARD_PEER_PUBLIC_KEY }}
-EndPoint = {{ WIREGUARD_ENDPOINT }}
-AllowedIPs = {{ WIREGUARD_ALLOWED_IPS }}
+PublicKey = {{ peer.PUBLIC_KEY }}
+EndPoint = {{ WG_VPN_ENDPOINT }}
+AllowedIPs = {{ peer.ALLOWED_IPS }}
 PersistentKeepalive = 25
+{% endfor %}
