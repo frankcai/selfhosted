@@ -36,12 +36,27 @@
       {% endfor %}
   become: yes
 
-- name: Test NFS mounts
-  command:
-    cmd: mount -a
-  become: yes
-  register: mount_test
-  failed_when: mount_test.rc != 0
+- name: Test NFS mounts block
+  block:
+    - name: Test NFS mounts
+      command:
+        cmd: mount -a
+      become: yes
+      register: mount_test
+      failed_when: mount_test.rc != 0
+  rescue:
+    - name: Refresh DNS by restarting systemd-resolved service on failure
+      become: yes
+      ansible.builtin.systemd:
+        name: systemd-resolved.service
+        state: restarted
+
+    - name: Retry Test NFS mounts after refreshing DNS
+      command:
+        cmd: mount -a
+      become: yes
+      register: mount_retry
+      failed_when: mount_retry.rc != 0
 
 - name: Start and Enable Fail2ban
   service:
