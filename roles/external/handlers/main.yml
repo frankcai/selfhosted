@@ -27,6 +27,12 @@
     state: started
     restart: yes
   become: yes    
+- name: Restart Jellyfin Container
+  docker_container:
+    name: jellyfin
+    state: started
+    restart: yes
+  become: yes      
 - name: Restart Watchtower Container
   docker_container:
     name: watchtower

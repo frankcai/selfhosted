@@ -101,6 +101,28 @@
     restart_policy: always
   notify: Restart Plex Container
 
+- name: Ensure Jellyfin Docker container is running
+  docker_container:
+    name: jellyfin
+    image: lscr.io/linuxserver/jellyfin:latest
+    env:
+      PUID: "{{ UID | string }}"
+      PGID: "{{ GID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ PLEX_MOUNT_1 }}"
+      - "{{ PLEX_MOUNT_2 }}"
+      - "{{ PLEX_MOUNT_3 }}"
+      - "{{ PLEX_MOUNT_4 }}"
+      - "{{ CFG_MOUNT }}/jellyfin-cfg:/config"
+    ports:
+      - "8096:8096"
+      - "8920:8920"
+      - "7359:7359/udp"
+      - "1900:1900/udp"   
+    restart_policy: always
+  notify: Restart Jellyfin Container
+
 - name: Ensure Vaultwarden Docker container is running
   docker_container:
     name: vaultwarden
@@ -242,6 +264,7 @@
     - vaultwarden
     - ask
     - plex
+    - jellyfin
     - chat
     - drive
     - file
@@ -257,6 +280,7 @@
     - vaultwarden
     - ask
     - plex
+    - jellyfin
     - chat
     - drive
     - file
