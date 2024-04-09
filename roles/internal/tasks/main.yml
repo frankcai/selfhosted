@@ -290,6 +290,20 @@
     restart_policy: always
   notify: Restart Duplicacy Container
 
+- name: Ensure Unpackerr Docker container is running
+  docker_container:
+    name: unpackerr
+    image: golift/unpackerr
+    user: "{{ UID | string }}:{{ GID | string }}"
+    env:
+      TZ: "{{ TIME_ZONE }}"   
+    volumes:
+      - "{{ UNPACKERR_MOUNT }}"
+      - "{{ CFG_MOUNT }}/unpackerr-cfg:/config"
+    networks:
+      - name: internal-net
+    restart_policy: always
+
 - name: Ensure Prowlarr Docker container is running
   docker_container:
     name: prowlarr
