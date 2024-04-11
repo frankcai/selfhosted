@@ -9,7 +9,13 @@
     name: nginx
     state: restarted
   become: yes
-- name: Restart Vaultwarden Container
+- name: Restart Uptime Kuma Container
+  docker_container:
+    name: uplocal
+    state: started
+    restart: yes
+  become: yes    
+- name: Restart Uptime Kuma Container
   docker_container:
     name: vaultwarden
     state: started

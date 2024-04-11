@@ -82,6 +82,17 @@
     mode: '0660'
   become: yes
 
+- name: Ensure Uptime Kuma Docker container is running
+  docker_container:
+    name: uplocal
+    image: louislam/uptime-kuma:1
+    volumes:
+      - "{{ CFG_MOUNT }}/uplocal-cfg/:/app/data/"
+    ports:
+      - "3001:3001"
+    restart_policy: always
+  notify: Restart Uptime Kuma Container
+
 - name: Ensure Plex Docker container is running
   docker_container:
     name: plex
@@ -261,6 +272,7 @@
     src: "{{ item }}.conf.j2"
     dest: "/etc/nginx/sites-available/{{ item }}.conf"
   loop:
+    - uplocal
     - vaultwarden
     - ask
     - plex
@@ -277,6 +289,7 @@
     dest: "/etc/nginx/sites-enabled/{{ item }}.conf"
     state: link
   loop:
+    - uplocal
     - vaultwarden
     - ask
     - plex
