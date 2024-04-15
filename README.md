@@ -67,5 +67,19 @@ sudo ansible-playbook site.yml`
 sudo ansible-playbook site.yml --limit dns`
 ```
 
+### Cron Jobs Configuration
+
+Configure the following cron jobs on the Ansible control server to manage system tasks automatically.
+
+#### 1. Clean Up VSCode Temporary Files
+
+- **Cron Schedule**: Daily at 4:00 AM
+- **Command**: 0 4 * * * rm -rf /home/*username*/.vscode-server /home/*username*/.vscode-server-insiders
+
+#### 2. Execute Ansible Playbooks Regularly
+
+- **Cron Schedule**: Weekly on Saturday at 3:00 AM
+- **Command**: 0 3 * * 6 cd ~/selfhosted && sudo ansible-playbook site.yml
+
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details.
