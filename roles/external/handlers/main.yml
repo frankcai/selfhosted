@@ -15,7 +15,7 @@
     state: started
     restart: yes
   become: yes    
-- name: Restart Uptime Kuma Container
+- name: Restart Vaultwarden Container
   docker_container:
     name: vaultwarden
     state: started
