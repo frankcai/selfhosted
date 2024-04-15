@@ -696,3 +696,11 @@
     minute: "0"
     job: "apt-get update && apt-get upgrade -y"
   become: yes
+
+- name: Set up cron job for paperless backup
+     cron:
+       name: "Export documents from paperless"
+       minute: "0"
+       hour: "4"
+       job: "sudo docker exec paperless document_exporter ../export"
+  become: yes
