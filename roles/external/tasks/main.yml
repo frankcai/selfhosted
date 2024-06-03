@@ -225,13 +225,13 @@
 
 - name: Get stat of remote file
   stat:
-    path: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/fullchain1.pem
+    path: /etc/letsencrypt/live/{{ DNS_DOMAIN }}/fullchain.pem
   register: cert_stat
   become: yes
 
 - name: Get stat of local file
   stat:
-    path: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/fullchain1.pem
+    path: /etc/letsencrypt/live/{{ DNS_DOMAIN }}/fullchain.pem
   register: local_cert_stat
   delegate_to: localhost
   become: yes
@@ -240,7 +240,7 @@
 - block:
   - name: Ensure the destination directory exists on local Ansible controller
     file:
-      path: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}
+      path: /etc/letsencrypt/live/{{ DNS_DOMAIN }}
       state: directory
       mode: '0755'
       owner: 'root'
@@ -250,9 +250,11 @@
 
   - name: Synchronize SSL certs from remote to Ansible controller
     synchronize:
-      src: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/
-      dest: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/
+      src: /etc/letsencrypt/live/{{ DNS_DOMAIN }}/
+      dest: /etc/letsencrypt/live/{{ DNS_DOMAIN }}/
       mode: pull
+      rsync_opts:
+        - "--copy-links"
     become: yes
     notify: Restart Nginx
 

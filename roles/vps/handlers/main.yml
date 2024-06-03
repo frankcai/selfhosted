@@ -10,3 +10,9 @@
     state: restarted
     enabled: yes
   become: yes
+- name: Restart Uptime Kuma Container
+  docker_container:
+    name: upremote
+    state: started
+    restart: yes
+  become: yes      
