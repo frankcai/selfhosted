@@ -10,6 +10,7 @@
       - nginx
       - fail2ban
       - wireguard
+      - docker.io
     state: present
   when: ansible_os_family == "Debian"
   become: yes
@@ -84,12 +85,44 @@
     reload: yes     
   become: yes   
 
+- name: Add user to docker group
+  user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: yes
+  become: yes
+  when: ansible_os_family == "Debian"
+
+- name: Ensure Docker service is started and enabled
+  service:
+    name: docker
+    state: started
+    enabled: yes
+  become: yes
+
+- name: Set docker socket permissions
+  file:
+    path: /var/run/docker.sock
+    group: docker
+    mode: '0660'
+  become: yes
+
+- name: Ensure Uptime Kuma Docker container is running
+  docker_container:
+    name: upremote
+    image: louislam/uptime-kuma:1
+    ports:
+      - "3001:3001"
+    restart_policy: always
+  notify: Restart Uptime Kuma Container
+
 - name: Place Nginx config for services
   template:
     src: "{{ item }}.conf.j2"
     dest: "/etc/nginx/sites-available/{{ item }}.conf"
   loop:
     - redirect
+    - upremote
   become: yes
   notify: Restart Nginx
 
@@ -100,6 +133,7 @@
     state: link
   loop:
     - redirect
+    - upremote
   become: yes
   notify: Restart Nginx
 
