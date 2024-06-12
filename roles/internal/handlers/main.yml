@@ -94,6 +94,12 @@
     state: started
     restart: yes
   become: yes   
+- name: Restart Playwright Container
+  docker_container:
+    name: playwright
+    state: started
+    restart: yes
+  become: yes    
 - name: Restart Changedetection Container
   docker_container:
     name: changedetection

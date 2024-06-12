@@ -410,10 +410,21 @@
     restart_policy: always
   notify: Restart Project Send Container 
 
+- name: Ensure Playwright Docker container is running
+  docker_container:
+    name: playwright
+    image: browserless/chrome
+    networks:
+      - name: internal-net  
+    restart_policy: unless-stopped
+  notify: Restart Playwright Container
+
 - name: Ensure Changedetection Docker container is running
   docker_container:
     name: changedetection
     image: dgtlmoon/changedetection.io:latest
+    env:
+      PLAYWRIGHT_DRIVER_URL: "ws://playwright:3000"
     volumes:
       - "{{ CFG_MOUNT }}/changedetection-cfg:/datastore"
     ports:
