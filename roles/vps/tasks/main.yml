@@ -61,6 +61,28 @@
     - { src: 'privkey.pem', dest: 'privkey.pem' }
   become: yes
 
+- name: Ensure /etc/nginx/ssl directory exists
+  file:
+    path: /etc/nginx/ssl
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  become: yes
+
+- name: Generate strong DH parameters
+  command:
+    cmd: openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
+    creates: /etc/nginx/ssl/dhparam.pem
+  become: yes
+
+- name: Update Nginx configuration using template
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+  become: yes
+  notify: Restart Nginx
+
 - name: Deploy WireGuard Configuration
   ansible.builtin.template:
     src: wireguard.conf.j2
