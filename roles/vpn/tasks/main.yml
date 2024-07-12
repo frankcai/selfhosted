@@ -1,4 +1,13 @@
 ---
+- name: Set DNS server
+  lineinfile:
+    path: /etc/resolv.conf
+    regexp: '^nameserver'
+    line: "nameserver {{ DNS_HOST }}"
+    state: present
+    backup: yes
+  become: yes
+
 - name: Install required packages
   apt:
     name:
