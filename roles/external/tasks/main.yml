@@ -69,6 +69,34 @@
       register: mount_retry
       failed_when: mount_retry.rc != 0
 
+- name: Configure persistent route in netplan
+  block:
+    - name: Ensure netplan configuration directory exists
+      file:
+        path: /etc/netplan
+        state: directory
+        mode: '0755'
+      become: yes
+
+    - name: Add persistent route to netplan configuration
+      copy:
+        dest: /etc/netplan/01-netcfg.yaml
+        content: |
+          network:
+            version: 2
+            ethernets:
+              ens18:
+                dhcp4: yes
+                routes:
+                  - to: "{{ WG_NETWORK }}"
+                    via: "{{ VPN_HOST }}"
+      become: yes
+
+    - name: Apply netplan configuration
+      command: netplan apply
+      become: yes
+  when: ansible_os_family == "Debian"
+
 - name: Add user to docker group
   user:
     name: "{{ ansible_user }}"
