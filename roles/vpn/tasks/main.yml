@@ -1,11 +1,23 @@
 ---
-- name: Set DNS server
+- name: Set DNS server for systemd-resolved
   lineinfile:
-    path: /etc/resolv.conf
-    regexp: '^nameserver'
-    line: "nameserver {{ DNS_HOST }}"
+    path: /etc/systemd/resolved.conf
+    regexp: '^#?DNS='
+    line: "DNS={{ DNS_HOST }}"
     state: present
-    backup: yes
+  become: yes
+
+- name: Restart systemd-resolved
+  systemd:
+    name: systemd-resolved
+    state: restarted
+  become: yes
+
+- name: Link resolv.conf to systemd-resolved
+  file:
+    src: /run/systemd/resolve/resolv.conf
+    dest: /etc/resolv.conf
+    state: link
   become: yes
 
 - name: Install required packages
