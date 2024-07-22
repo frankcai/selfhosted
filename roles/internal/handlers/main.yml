@@ -142,3 +142,12 @@
     state: started
     restart: yes
   become: yes         
+- name: Restart Docker
+  ansible.builtin.service:
+    name: docker
+    state: restarted
+  become: yes  
+- name: Reload Daemon
+  ansible.builtin.systemd:
+    daemon_reload: yes
+  become: yes 

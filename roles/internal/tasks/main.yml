@@ -29,6 +29,7 @@
       - nginx
       - ufw
       - fail2ban
+      - jq
     state: present
   when: ansible_os_family == "Debian"
   become: yes
@@ -43,6 +44,59 @@
   ansible.builtin.command: ip route add {{ WG_NETWORK }} via {{ VPN_HOST }} dev ens18 proto static onlink
   when: route_check.rc != 0
   become: yes
+
+- name: Check if daemon.json exists
+  ansible.builtin.stat:
+    path: /etc/docker/daemon.json
+  register: daemon_json_stat
+  become: yes
+
+- name: Generate expected daemon.json content
+  set_fact:
+    expected_daemon_json: |
+      {
+        "hosts": ["unix:///var/run/docker.sock", "tcp://{{ INTERNAL_HOST_DOCKER }}"]
+      }
+
+- name: Calculate expected daemon.json checksum
+  ansible.builtin.command: echo '{{ expected_daemon_json }}' | md5sum
+  register: expected_daemon_json_md5
+  become: no
+
+- name: Create or update the daemon.json file with TCP settings
+  ansible.builtin.copy:
+    content: "{{ expected_daemon_json }}"
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: '0644'
+  when: daemon_json_stat.stat.exists == false or daemon_json_stat.stat.checksum != expected_daemon_json_md5.stdout.split()[0]
+  become: yes
+  notify: Restart Docker
+
+- name: Ensure the directory for systemd override exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Create or update override.conf content
+  ansible.builtin.copy:
+    content: |
+      [Service]
+      # The blank ExecStart is required to clear the current entry point
+      ExecStart=
+      # Replace the existing ExecStart but only remove the properties that you have added into the daemon.json file, leave all else the same.
+      ExecStart=/usr/bin/dockerd --containerd=/run/containerd/containerd.sock
+    dest: /etc/systemd/system/docker.service.d/override.conf
+    owner: root
+    group: root
+    mode: '0644'
+  become: yes
+  notify:
+    - Reload Daemon
+    - Restart Docker
 
 - name: Check if NFS directories exist
   stat:
