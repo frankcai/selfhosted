@@ -4,6 +4,13 @@ PrivateKey = {{ WG_VPS_PRIVATE_KEY }}
 ListenPort = {{ WG_VPS_PORT }}
 MTU = 1280
 
+# setup packet forwarding
+PreUp = sysctl -w net.ipv4.ip_forward=1
+
+# setup iptables
+PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+
 {% if WG_VPS_PEERS %}
 {% for PEER in WG_VPS_PEERS %}
 [Peer]
