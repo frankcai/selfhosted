@@ -55,7 +55,8 @@
   set_fact:
     expected_daemon_json: |
       {
-        "hosts": ["unix:///var/run/docker.sock", "tcp://{{ INTERNAL_HOST_DOCKER }}"]
+        "hosts": ["unix:///var/run/docker.sock", "tcp://{{ INTERNAL_HOST_DOCKER }}"],
+        "dns": ["{{ DNS_HOST }}"]
       }
 
 - name: Calculate expected daemon.json checksum
