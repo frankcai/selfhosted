@@ -359,6 +359,7 @@
     - chat
     - drive
     - file
+    - amp
   become: yes
   notify: Restart Nginx
 
@@ -376,6 +377,7 @@
     - chat
     - drive
     - file
+    - amp
   become: yes
   notify: Restart Nginx
   
