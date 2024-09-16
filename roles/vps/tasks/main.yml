@@ -1,4 +1,34 @@
 ---
+- name: Create systemd-resolved configuration directory
+  file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Configure per-domain DNS server for self-hosted services
+  copy:
+    dest: /etc/systemd/resolved.conf.d/10-selfhosted.conf
+    content: |
+      [Resolve]
+      DNS={{ DNS_HOST }}
+      Domains=~{{ DNS_DOMAIN }}
+    mode: '0644'
+  become: yes
+
+- name: Restart systemd-resolved
+  systemd:
+    name: systemd-resolved
+    state: restarted
+  become: yes
+
+- name: Link resolv.conf to systemd-resolved
+  file:
+    src: /run/systemd/resolve/resolv.conf
+    dest: /etc/resolv.conf
+    state: link
+  become: yes
+
 - name: Run apt update
   ansible.builtin.apt:
     update_cache: yes
