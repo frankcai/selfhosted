@@ -15,6 +15,12 @@
     state: started
     restart: yes
   become: yes    
+- name: Restart Ntfy Container
+  docker_container:
+    name: ntfy
+    state: started
+    restart: yes
+  become: yes  
 - name: Restart Vaultwarden Container
   docker_container:
     name: vaultwarden

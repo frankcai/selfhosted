@@ -198,6 +198,22 @@
     restart_policy: always
   notify: Restart Jellyfin Container
 
+- name: Ensure Ntfy Docker container is running
+  docker_container:
+    name: ntfy
+    image: binwiederhier/ntfy:latest
+    command:
+      - serve
+    env:
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/ntfy-cfg/:/etc/ntfy"
+      - "{{ CFG_MOUNT }}/ntfy-db/:/var/lib/ntfy"
+    ports:
+      - "9091:80"
+    restart_policy: always
+  notify: Restart Ntfy Container
+
 - name: Ensure Vaultwarden Docker container is running
   docker_container:
     name: vaultwarden
@@ -360,6 +376,7 @@
     - drive
     - file
     - amp
+    - ntfy
   become: yes
   notify: Restart Nginx
 
@@ -378,6 +395,7 @@
     - drive
     - file
     - amp
+    - ntfy
   become: yes
   notify: Restart Nginx
   
