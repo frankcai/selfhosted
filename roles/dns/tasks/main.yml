@@ -4,7 +4,7 @@
     update_cache: yes
   become: yes
 
-- name: Install BIND and UFW
+- name: Install necessary packages
   apt:
     name:
       - bind9

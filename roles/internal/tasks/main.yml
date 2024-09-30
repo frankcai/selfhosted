@@ -219,7 +219,8 @@
 - name: Ensure Paperless-DB container is running
   docker_container:
     name: paperless-db
-    image: linuxserver/mariadb:latest
+    image: lscr.io/linuxserver/mariadb:10.11.8
+    image_name_mismatch: "recreate"
     env:
       PUID: "{{ UID | string }}"
       PGID: "{{ GID | string }}"
@@ -289,7 +290,8 @@
 - name: Ensure Home-Assistant-DB container is running
   docker_container:
     name: home-assistant-db
-    image: linuxserver/mariadb:latest
+    image: lscr.io/linuxserver/mariadb:10.11.8
+    image_name_mismatch: "recreate"
     env:
       PUID: "{{ UID | string }}"
       PGID: "{{ GID | string }}"
@@ -558,7 +560,8 @@
 - name: Ensure Bookstack DB Docker container is running
   docker_container:
     name: bookstack_db
-    image: lscr.io/linuxserver/mariadb:latest
+    image: lscr.io/linuxserver/mariadb:10.11.8
+    image_name_mismatch: "recreate"
     env:
       PUID: "{{ UID | string }}"
       PGID: "{{ GID | string }}"
