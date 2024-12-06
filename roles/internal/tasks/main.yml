@@ -540,6 +540,24 @@
     restart_policy: always
   notify: Restart Babybuddy Container
 
+- name: Ensure Calibre-web Docker container is running
+  docker_container:
+    name: cw
+    image: linuxserver/calibre-web:latest
+    env:
+      PUID: "{{ UID | string }}"
+      PGID: "{{ GID | string }}"
+      TZ: "{{ TIME_ZONE }}"    
+    volumes:
+      - "{{ CFG_MOUNT }}/calibre-web-cfg:/config"    
+      - "{{ CFG_MOUNT }}/calibre-cfg:/books"
+    ports:
+      - "8083:8083"
+    networks:
+      - name: internal-net      
+    restart_policy: always
+  notify: Restart Calibre-web Container
+
 - name: Ensure Tautulli Docker container is running
   docker_container:
     name: tautulli
@@ -731,6 +749,7 @@
     dest: "/etc/nginx/sites-available/{{ item }}.conf"
   loop:
     - dsm
+    - cw
     - qbt
     - surveillance
     - paperless
@@ -757,6 +776,7 @@
     state: link
   loop:
     - dsm
+    - cw
     - qbt
     - surveillance
     - paperless

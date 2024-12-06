@@ -4,6 +4,12 @@
     name: nginx
     state: restarted
   become: yes
+- name: Restart Calibre-web Container
+  docker_container:
+    name: cw
+    state: started
+    restart: yes
+  become: yes    
 - name: Restart Paperless-DB Container
   docker_container:
     name: paperless-db
