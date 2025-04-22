@@ -637,6 +637,21 @@
     restart_policy: always
   notify: Restart Homepage Container
 
+- name: Ensure Homebox Docker container is running
+  docker_container:
+    name: homebox
+    image: ghcr.io/sysadminsmedia/homebox:latest
+    env:
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/homebox-cfg:/data"
+    ports:
+      - "7745:7745"
+    networks:
+      - name: internal-net      
+    restart_policy: always
+  notify: Restart Homebox Container
+
 - name: Ensure Watchtower Docker container is running
   docker_container:
     name: watchtower
@@ -765,6 +780,7 @@
     - babybuddy
     - tautulli
     - bookstack
+    - homebox
     - home
   become: yes
   notify: Restart Nginx
@@ -792,6 +808,7 @@
     - babybuddy
     - tautulli
     - bookstack    
+    - homebox    
     - home
   become: yes
   notify: Restart Nginx
