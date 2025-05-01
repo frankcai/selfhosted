@@ -160,11 +160,12 @@
 - name: Ensure Plex Docker container is running
   docker_container:
     name: plex
-    image: linuxserver/plex:latest
+    image: plexinc/pms-docker:latest
     env:
-      PUID: "{{ UID | string }}"
-      PGID: "{{ GID | string }}"
-      TZ: "{{ TIME_ZONE }}"
+      PLEX_UID: "{{ UID | string }}"
+      PLEX_GID: "{{ GID | string }}"
+      TZ:    "{{ TIME_ZONE }}"
+      ALLOWED_NETWORKS: "{{ INTERNAL_NETWORK }}"
     volumes:
       - "{{ PLEX_MOUNT_1 }}"
       - "{{ PLEX_MOUNT_2 }}"
@@ -173,6 +174,14 @@
       - "{{ CFG_MOUNT }}/plex-cfg:/config"
     ports:
       - "32400:32400"
+      - "32400:32400/udp"
+      - "3005:3005"
+      - "8324:8324"
+      - "32469:32469"
+      - "32410:32410/udp"
+      - "32412:32412/udp"
+      - "32413:32413/udp"
+      - "32414:32414/udp"
     restart_policy: always
   notify: Restart Plex Container
 
