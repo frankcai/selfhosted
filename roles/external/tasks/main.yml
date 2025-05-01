@@ -349,6 +349,16 @@
 
   when: (not local_cert_stat.stat.exists) or (cert_stat.stat.exists and cert_stat.stat.mtime > local_cert_stat.stat.mtime)
 
+- name: Prune old cert versions in the archive, keep only current + 2
+  shell: |
+    for type in cert chain fullchain privkey; do
+      ls -1t /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/${type}*.pem \
+        | tail -n +4 \
+        | xargs -r rm -f
+    done
+  become: yes
+  when: ansible_os_family == "Debian"
+
 - name: Ensure /etc/nginx/ssl directory exists
   file:
     path: /etc/nginx/ssl
