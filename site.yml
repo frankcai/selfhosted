@@ -1,5 +1,6 @@
 ---
-- hosts: vpn
+- name: Configure VPN Server
+  hosts: vpn
   vars_files:
     - secrets.yml
   vars:
@@ -7,35 +8,44 @@
   roles:
     - vpn
 
-#- hosts: monitoring
-#  roles:
-#    - monitoring
-#
-- hosts: dns
+# - name: Configure Monitoring
+#   hosts: monitoring
+#   roles:
+#     - monitoring
+
+- name: Configure DNS Server
+  hosts: dns
   vars_files:
     - secrets.yml
   vars:
     ansible_host: "{{ DNS_HOST }}"
   roles:
     - dns
-- hosts: external
+
+- name: Configure External Host
+  hosts: external
   vars_files:
     - secrets.yml
   vars:
     ansible_host: "{{ EXTERNAL_HOST }}"
   pre_tasks:
-    - ansible.builtin.set_fact:
+    - name: Set fact
+      ansible.builtin.set_fact:
         ansible_host: "{{ EXTERNAL_HOST }}"
   roles:
     - external
-- hosts: internal
+
+- name: Configure Internal Host
+  hosts: internal
   vars_files:
     - secrets.yml
   vars:
     ansible_host: "{{ INTERNAL_HOST }}"
   roles:
     - internal
-- hosts: vps
+
+- name: Configure VPS Host
+  hosts: vps
   vars_files:
     - secrets.yml
   vars:

@@ -35,14 +35,21 @@
   become: true
 
 - name: Check if wireguard route exists
-  ansible.builtin.command: ip route show {{ WG_NETWORK }} via {{ VPN_HOST }} dev ens18 proto static
+  ansible.builtin.command: >
+    ip route show {{ WG_NETWORK }}
+    via {{ VPN_HOST }} dev ens18 proto static
   register: route_check
   ignore_errors: true
+  changed_when: false
+  failed_when: false
   become: true
 
-- name: Add route to wireguard network if not exists
-  ansible.builtin.command: ip route add {{ WG_NETWORK }} via {{ VPN_HOST }} dev ens18 proto static onlink
+- name: Add route to wireguard network if not present
+  ansible.builtin.command: >
+    ip route add {{ WG_NETWORK }}
+    via {{ VPN_HOST }} dev ens18 proto static onlink
   when: route_check.rc != 0
+  changed_when: route_check.rc != 0
   become: true
 
 - name: Check if daemon.json exists
@@ -71,7 +78,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: daemon_json_stat.stat.exists == false or daemon_json_stat.stat.checksum != expected_daemon_json_md5.stdout.split()[0]
+  when: not daemon_json_stat.stat.exists or daemon_json_stat.stat.checksum != expected_daemon_json_md5.stdout.split()[0]
   become: true
   notify: Restart Docker
 
@@ -111,7 +118,7 @@
     state: directory
     mode: "0755"
   loop: "{{ dir_status.results }}"
-  when: item.stat.exists == false
+  when: not item.stat.exists
   become: true
 
 - name: Add NFS mounts to /etc/fstab
@@ -123,27 +130,37 @@
       {% endfor %}
   become: true
 
-- name: Test NFS mounts block
+- name: Ensure NFS shares are mounted (and retry on DNS hiccup)
   block:
-    - name: Test NFS mounts
-      ansible.builtin.command:
-        cmd: mount -a
+    - name: "Mount NFS share {{ item.source ~ ' → ' ~ item.dest }}"
+      ansible.posix.mount:
+        path: "{{ item.dest }}"
+        src: "{{ NFS_SERVER }}:{{ item.source }}"
+        fstype: nfs
+        opts: "{{ item.options | default('defaults') }}"
+        state: mounted
       become: true
-      register: mount_test
-      failed_when: mount_test.rc != 0
+      loop: "{{ NFS_MOUNTS }}"
+      register: mount_results
+
   rescue:
-    - name: Refresh DNS by restarting systemd-resolved service on failure
-      become: true
+    - name: DNS lookup failed – restart systemd-resolved
       ansible.builtin.systemd:
         name: systemd-resolved.service
         state: restarted
-
-    - name: Retry Test NFS mounts after refreshing DNS
-      ansible.builtin.command:
-        cmd: mount -a
       become: true
+
+    - name: Retry mounting NFS shares after DNS restart
+      ansible.posix.mount:
+        path: "{{ item.dest }}"
+        src: "{{ NFS_SERVER }}:{{ item.source }}"
+        fstype: nfs
+        opts: "{{ item.options | default('defaults') }}"
+        state: mounted
+      become: true
+      loop: "{{ NFS_MOUNTS }}"
       register: mount_retry
-      failed_when: mount_retry.rc != 0
+      failed_when: mount_retry.failed
 
 - name: Start and Enable Fail2ban
   ansible.builtin.service:
@@ -689,7 +706,7 @@
     state: enabled
   become: true
 
-- name: Ensure the /etc/letsencrypt/live/{{ DNS_DOMAIN }} directory exists
+- name: Ensure existence of directory /etc/letsencrypt/live/{{ DNS_DOMAIN }}
   ansible.builtin.file:
     path: /etc/letsencrypt/live/{{ DNS_DOMAIN }}
     state: directory
@@ -698,7 +715,7 @@
     group: root
   become: true
 
-- name: Ensure the /etc/letsencrypt/archive/{{ DNS_DOMAIN }} directory exists
+- name: Ensure existence of directory /etc/letsencrypt/archive/{{ DNS_DOMAIN }}
   ansible.builtin.file:
     path: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}
     state: directory
@@ -722,7 +739,7 @@
   become: true
   notify: Restart Nginx
 
-- name: Ensure symlinks for /etc/letsencrypt/live/{{ DNS_DOMAIN }} are set
+- name: Ensure symlinks are set for /etc/letsencrypt/live/{{ DNS_DOMAIN }}
   ansible.builtin.file:
     src: "/etc/letsencrypt/archive/{{ DNS_DOMAIN }}/{{ item.src }}"
     dest: "/etc/letsencrypt/live/{{ DNS_DOMAIN }}/{{ item.dest }}"

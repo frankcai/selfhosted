@@ -45,7 +45,7 @@
   when: ansible_os_family == "Debian"
   become: true
 
-- name: Ensure the /etc/letsencrypt/live/{{ DNS_DOMAIN }} directory exists
+- name: Ensure existence of directory  /etc/letsencrypt/live/{{ DNS_DOMAIN }}
   ansible.builtin.file:
     path: /etc/letsencrypt/live/{{ DNS_DOMAIN }}
     state: directory
@@ -54,7 +54,7 @@
     group: root
   become: true
 
-- name: Ensure the /etc/letsencrypt/archive/{{ DNS_DOMAIN }} directory exists
+- name: Ensure existence of directory /etc/letsencrypt/archive/{{ DNS_DOMAIN }}
   ansible.builtin.file:
     path: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}
     state: directory
@@ -78,7 +78,7 @@
   become: true
   notify: Restart Nginx
 
-- name: Ensure symlinks for /etc/letsencrypt/live/{{ DNS_DOMAIN }} are set
+- name: Ensure symlinks are set for /etc/letsencrypt/live/{{ DNS_DOMAIN }}
   ansible.builtin.file:
     src: "/etc/letsencrypt/archive/{{ DNS_DOMAIN }}/{{ item.src }}"
     dest: "/etc/letsencrypt/live/{{ DNS_DOMAIN }}/{{ item.dest }}"

@@ -36,14 +36,21 @@
   become: true
 
 - name: Check if wireguard route exists
-  ansible.builtin.command: ip route show {{ WG_NETWORK }} via {{ VPN_HOST }} dev ens18 proto static
+  ansible.builtin.command: >
+    ip route show {{ WG_NETWORK }}
+    via {{ VPN_HOST }} dev ens18 proto static
   register: route_check
   ignore_errors: true
+  changed_when: false
+  failed_when: false
   become: true
 
-- name: Add route to wireguard network if not exists
-  ansible.builtin.command: ip route add {{ WG_NETWORK }} via {{ VPN_HOST }} dev ens18 proto static onlink
+- name: Add route to wireguard network if not present
+  ansible.builtin.command: >
+    ip route add {{ WG_NETWORK }}
+    via {{ VPN_HOST }} dev ens18 proto static onlink
   when: route_check.rc != 0
+  changed_when: route_check.rc != 0
   become: true
 
 - name: Check if NFS directories exist
@@ -58,7 +65,7 @@
     state: directory
     mode: "0755"
   loop: "{{ dir_status.results }}"
-  when: item.stat.exists == false
+  when: not item.stat.exists
   become: true
 
 - name: Add NFS mounts to /etc/fstab
@@ -70,36 +77,47 @@
       {% endfor %}
   become: true
 
-- name: Test NFS mounts block
+- name: Ensure NFS shares are mounted (and retry on DNS hiccup)
   block:
-    - name: Test NFS mounts
-      ansible.builtin.command:
-        cmd: mount -a
+    - name: "Mount NFS share {{ item.source ~ ' → ' ~ item.dest }}"
+      ansible.posix.mount:
+        path: "{{ item.dest }}"
+        src: "{{ NFS_SERVER }}:{{ item.source }}"
+        fstype: nfs
+        opts: "{{ item.options | default('defaults') }}"
+        state: mounted
       become: true
-      register: mount_test
-      failed_when: mount_test.rc != 0
+      loop: "{{ NFS_MOUNTS }}"
+      register: mount_results
+
   rescue:
-    - name: Refresh DNS by restarting systemd-resolved service on failure
-      become: true
+    - name: DNS lookup failed – restart systemd-resolved
       ansible.builtin.systemd:
         name: systemd-resolved.service
         state: restarted
-
-    - name: Retry Test NFS mounts after refreshing DNS
-      ansible.builtin.command:
-        cmd: mount -a
       become: true
+
+    - name: Retry mounting NFS shares after DNS restart
+      ansible.posix.mount:
+        path: "{{ item.dest }}"
+        src: "{{ NFS_SERVER }}:{{ item.source }}"
+        fstype: nfs
+        opts: "{{ item.options | default('defaults') }}"
+        state: mounted
+      become: true
+      loop: "{{ NFS_MOUNTS }}"
       register: mount_retry
-      failed_when: mount_retry.rc != 0
+      failed_when: mount_retry.failed
 
 - name: Configure persistent route in netplan
   when: ansible_os_family == "Debian"
-
   block:
     - name: Ensure netplan configuration directory exists
       ansible.builtin.file:
         path: /etc/netplan
         state: directory
+        owner: root
+        group: root
         mode: "0755"
       become: true
 
@@ -115,11 +133,12 @@
                 routes:
                   - to: "{{ WG_NETWORK }}"
                     via: "{{ VPN_HOST }}"
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Apply netplan configuration
       become: true
 
-    - name: Apply netplan configuration
-      ansible.builtin.command: netplan apply
-      become: true
 - name: Add user to docker group
   ansible.builtin.user:
     name: "{{ ansible_user }}"
@@ -350,11 +369,22 @@
 
 - name: Prune old cert versions in the archive, keep only current + 2
   ansible.builtin.shell: |
-    for type in cert chain fullchain privkey; do
-      ls -1t /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/${type}*.pem \
-        | tail -n +4 \
-        | xargs -r rm -f
-    done
+    set -o pipefail
+    # collect any files beyond the newest 2 per type
+    files_to_remove=$(
+      for type in cert chain fullchain privkey; do
+        ls -1t /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/${type}*.pem \
+          | tail -n +4
+      done
+    )
+    # only delete if there is something to delete
+    if [ -n "$files_to_remove" ]; then
+      echo "$files_to_remove" | xargs -r rm -f
+    fi
+  args:
+    executable: /bin/bash
+  register: prune_old_certs
+  changed_when: prune_old_certs.stdout != ""
   become: true
   when: ansible_os_family == "Debian"
 

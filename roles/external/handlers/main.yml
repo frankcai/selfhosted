@@ -51,3 +51,7 @@
     state: started
     restart: true
   become: true
+- name: Apply netplan configuration
+  ansible.builtin.command: netplan apply
+  become: true
+  changed_when: false

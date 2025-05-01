@@ -78,12 +78,19 @@
   notify: Restart BIND
 
 - name: Check if wireguard route exists
-  ansible.builtin.command: ip route show {{ WG_NETWORK }} via {{ VPN_HOST }} dev ens18 proto static
+  ansible.builtin.command: >
+    ip route show {{ WG_NETWORK }}
+    via {{ VPN_HOST }} dev ens18 proto static
   register: route_check
   ignore_errors: true
+  changed_when: false
+  failed_when: false
   become: true
 
-- name: Add route to wireguard network if not exists
-  ansible.builtin.command: ip route add {{ WG_NETWORK }}  via {{ VPN_HOST }} dev ens18 proto static onlink
+- name: Add route to wireguard network if not present
+  ansible.builtin.command: >
+    ip route add {{ WG_NETWORK }}
+    via {{ VPN_HOST }} dev ens18 proto static onlink
   when: route_check.rc != 0
+  changed_when: route_check.rc != 0
   become: true
