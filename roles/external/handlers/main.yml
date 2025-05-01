@@ -1,53 +1,53 @@
 ---
 - name: Restart Docker
-  service:
+  ansible.builtin.service:
     name: docker
     state: restarted
-  become: yes
+  become: true
 - name: Restart Nginx
-  service:
+  ansible.builtin.service:
     name: nginx
     state: restarted
-  become: yes
+  become: true
 - name: Restart Uptime Kuma Container
-  docker_container:
+  community.docker.docker_container:
     name: uplocal
     state: started
-    restart: yes
-  become: yes    
+    restart: true
+  become: true
 - name: Restart Ntfy Container
-  docker_container:
+  community.docker.docker_container:
     name: ntfy
     state: started
-    restart: yes
-  become: yes  
+    restart: true
+  become: true
 - name: Restart Vaultwarden Container
-  docker_container:
+  community.docker.docker_container:
     name: vaultwarden
     state: started
-    restart: yes
-  become: yes  
+    restart: true
+  become: true
 - name: Restart ChatGPT Next Web Container
-  docker_container:
+  community.docker.docker_container:
     name: chatgpt-next-web
     state: started
-    restart: yes
-  become: yes  
+    restart: true
+  become: true
 - name: Restart Plex Container
-  docker_container:
+  community.docker.docker_container:
     name: plex
     state: started
-    restart: yes
-  become: yes    
+    restart: true
+  become: true
 - name: Restart Jellyfin Container
-  docker_container:
+  community.docker.docker_container:
     name: jellyfin
     state: started
-    restart: yes
-  become: yes      
+    restart: true
+  become: true
 - name: Restart Watchtower Container
-  docker_container:
+  community.docker.docker_container:
     name: watchtower
     state: started
-    restart: yes
-  become: yes         
+    restart: true
+  become: true

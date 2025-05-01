@@ -1,27 +1,27 @@
 ---
 - name: Set DNS server for systemd-resolved
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/systemd/resolved.conf
-    regexp: '^#?DNS='
+    regexp: "^#?DNS="
     line: "DNS={{ DNS_HOST }}"
     state: present
-  become: yes
+  become: true
 
 - name: Restart systemd-resolved
-  systemd:
+  ansible.builtin.systemd:
     name: systemd-resolved
     state: restarted
-  become: yes
+  become: true
 
 - name: Link resolv.conf to systemd-resolved
-  file:
+  ansible.builtin.file:
     src: /run/systemd/resolve/resolv.conf
     dest: /etc/resolv.conf
     state: link
-  become: yes
+  become: true
 
 - name: Install required packages
-  apt:
+  ansible.builtin.apt:
     name:
       - nfs-common
       - docker.io
@@ -32,27 +32,27 @@
       - jq
     state: present
   when: ansible_os_family == "Debian"
-  become: yes
+  become: true
 
 - name: Check if wireguard route exists
   ansible.builtin.command: ip route show {{ WG_NETWORK }} via {{ VPN_HOST }} dev ens18 proto static
   register: route_check
-  ignore_errors: yes
-  become: yes
+  ignore_errors: true
+  become: true
 
 - name: Add route to wireguard network if not exists
   ansible.builtin.command: ip route add {{ WG_NETWORK }} via {{ VPN_HOST }} dev ens18 proto static onlink
   when: route_check.rc != 0
-  become: yes
+  become: true
 
 - name: Check if daemon.json exists
   ansible.builtin.stat:
     path: /etc/docker/daemon.json
   register: daemon_json_stat
-  become: yes
+  become: true
 
 - name: Generate expected daemon.json content
-  set_fact:
+  ansible.builtin.set_fact:
     expected_daemon_json: |
       {
         "hosts": ["unix:///var/run/docker.sock", "tcp://{{ INTERNAL_HOST_DOCKER }}"],
@@ -62,7 +62,7 @@
 - name: Calculate expected daemon.json checksum
   ansible.builtin.command: echo '{{ expected_daemon_json }}' | md5sum
   register: expected_daemon_json_md5
-  become: no
+  become: false
 
 - name: Create or update the daemon.json file with TCP settings
   ansible.builtin.copy:
@@ -70,17 +70,17 @@
     dest: /etc/docker/daemon.json
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   when: daemon_json_stat.stat.exists == false or daemon_json_stat.stat.checksum != expected_daemon_json_md5.stdout.split()[0]
-  become: yes
+  become: true
   notify: Restart Docker
 
 - name: Ensure the directory for systemd override exists
   ansible.builtin.file:
     path: /etc/systemd/system/docker.service.d
     state: directory
-    mode: '0755'
-  become: yes
+    mode: "0755"
+  become: true
 
 - name: Create or update override.conf content
   ansible.builtin.copy:
@@ -93,98 +93,98 @@
     dest: /etc/systemd/system/docker.service.d/override.conf
     owner: root
     group: root
-    mode: '0644'
-  become: yes
+    mode: "0644"
+  become: true
   notify:
     - Reload Daemon
     - Restart Docker
 
 - name: Check if NFS directories exist
-  stat:
+  ansible.builtin.stat:
     path: "{{ item.dest }}"
   register: dir_status
   loop: "{{ NFS_MOUNTS }}"
-    
+
 - name: Create required NFS directories if they don't exist
-  file:
+  ansible.builtin.file:
     path: "{{ item.item }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
   loop: "{{ dir_status.results }}"
   when: item.stat.exists == false
-  become: yes
+  become: true
 
 - name: Add NFS mounts to /etc/fstab
-  blockinfile:
+  ansible.builtin.blockinfile:
     path: /etc/fstab
     block: |
       {% for MOUNT in NFS_MOUNTS %}
       {{ NFS_SERVER }}:{{ MOUNT.source }} {{ MOUNT.dest }} nfs {{ MOUNT.options }} 0 0
       {% endfor %}
-  become: yes
+  become: true
 
 - name: Test NFS mounts block
   block:
     - name: Test NFS mounts
-      command:
+      ansible.builtin.command:
         cmd: mount -a
-      become: yes
+      become: true
       register: mount_test
       failed_when: mount_test.rc != 0
   rescue:
     - name: Refresh DNS by restarting systemd-resolved service on failure
-      become: yes
+      become: true
       ansible.builtin.systemd:
         name: systemd-resolved.service
         state: restarted
 
     - name: Retry Test NFS mounts after refreshing DNS
-      command:
+      ansible.builtin.command:
         cmd: mount -a
-      become: yes
+      become: true
       register: mount_retry
       failed_when: mount_retry.rc != 0
 
 - name: Start and Enable Fail2ban
-  service:
+  ansible.builtin.service:
     name: fail2ban
     state: started
-    enabled: yes
-  become: yes
+    enabled: true
+  become: true
 
 - name: Add user to docker group
-  user:
+  ansible.builtin.user:
     name: "{{ ansible_user }}"
     groups: docker
-    append: yes
-  become: yes
+    append: true
+  become: true
   when: ansible_os_family == "Debian"
 
 - name: Ensure Docker service is started and enabled
-  service:
+  ansible.builtin.service:
     name: docker
     state: started
-    enabled: yes
-  become: yes
+    enabled: true
+  become: true
 
 - name: Set docker socket permissions
-  file:
+  ansible.builtin.file:
     path: /var/run/docker.sock
     group: docker
-    mode: '0660'
-  become: yes
+    mode: "0660"
+  become: true
 
 - name: Create a user-defined bridge network for service discovery
-  docker_network:
+  community.docker.docker_network:
     name: internal-net
     driver_options:
       com.docker.network.bridge.name: internal-net
     ipam_config:
-      - subnet: '172.25.0.0/16'
+      - subnet: "172.25.0.0/16"
     state: present
 
 - name: Ensure Paperless-redis container is running
-  docker_container:
+  community.docker.docker_container:
     name: paperless-redis
     image: docker.io/library/redis:7
     volumes:
@@ -195,7 +195,7 @@
   notify: Restart Paperless-redis Container
 
 - name: Ensure Paperless-gotenberg container is running
-  docker_container:
+  community.docker.docker_container:
     name: paperless-gotenberg
     image: docker.io/gotenberg/gotenberg:7.8
     command:
@@ -208,7 +208,7 @@
   notify: Restart Paperless-gotenberg Container
 
 - name: Ensure Paperless-tika container is running
-  docker_container:
+  community.docker.docker_container:
     name: paperless-tika
     image: ghcr.io/paperless-ngx/tika:latest
     networks:
@@ -217,7 +217,7 @@
   notify: Restart Paperless-tika Container
 
 - name: Ensure Paperless-DB container is running
-  docker_container:
+  community.docker.docker_container:
     name: paperless-db
     image: lscr.io/linuxserver/mariadb:10.11.8
     image_name_mismatch: "recreate"
@@ -243,15 +243,15 @@
   notify: Restart Paperless-DB Container
 
 - name: Wait for Paperless-DB to be healthy
-  command: "docker inspect --format='{%raw%}{{.State.Health.Status}}{%endraw%}' paperless-db"
+  ansible.builtin.command: "docker inspect --format='{%raw%}{{.State.Health.Status}}{%endraw%}' paperless-db"
   register: result
   until: result.stdout == "healthy"
-  retries: 30 
+  retries: 30
   delay: 10
   changed_when: false
 
 - name: Ensure Paperless Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: paperless
     image: ghcr.io/paperless-ngx/paperless-ngx:latest
     env:
@@ -262,7 +262,7 @@
       PAPERLESS_REDIS: "redis://paperless-redis:6379"
       PAPERLESS_DBENGINE: "mariadb"
       PAPERLESS_DBHOST: "paperless-db"
-      PAPERLESS_DBNAME: "pldb"      
+      PAPERLESS_DBNAME: "pldb"
       PAPERLESS_DBUSER: "pl"
       PAPERLESS_DBPASS: "{{ PL_MYSQL_PASSWORD }}"
       PAPERLESS_DBPORT: "3306"
@@ -279,7 +279,7 @@
       - "{{ CFG_MOUNT }}/paperless-cfg/media:/usr/src/paperless/media"
       - "{{ CFG_MOUNT }}/paperless-cfg/export:/usr/src/paperless/export"
       - "{{ CFG_MOUNT }}/paperless-cfg/consume:/usr/src/paperless/consume"
-      - "{{ CFG_MOUNT }}/logs/paperless:/logs"      
+      - "{{ CFG_MOUNT }}/logs/paperless:/logs"
     ports:
       - "8355:8000"
     networks:
@@ -288,7 +288,7 @@
   notify: Restart Paperless Container
 
 - name: Ensure Home-Assistant-DB container is running
-  docker_container:
+  community.docker.docker_container:
     name: home-assistant-db
     image: lscr.io/linuxserver/mariadb:10.11.8
     image_name_mismatch: "recreate"
@@ -314,15 +314,15 @@
   notify: Restart Home-Assistant-DB Container
 
 - name: Wait for Home-Assistant-DB to be healthy
-  command: "docker inspect --format='{%raw%}{{.State.Health.Status}}{%endraw%}' home-assistant-db"
+  ansible.builtin.command: "docker inspect --format='{%raw%}{{.State.Health.Status}}{%endraw%}' home-assistant-db"
   register: result
   until: result.stdout == "healthy"
-  retries: 30 
+  retries: 30
   delay: 10
   changed_when: false
 
 - name: Ensure Home-Assistant container is running
-  docker_container:
+  community.docker.docker_container:
     name: home-assistant
     image: homeassistant/home-assistant:latest
     env:
@@ -340,7 +340,7 @@
   notify: Restart Home-Assistant Container
 
 - name: Ensure Linkding Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: linkding
     image: sissbruecker/linkding:latest
     env:
@@ -360,7 +360,7 @@
   notify: Restart Linkding Container
 
 - name: Ensure Duplicacy Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: duplicacy
     image: saspus/duplicacy-web:latest
     env:
@@ -369,7 +369,7 @@
       TZ: "{{ TIME_ZONE }}"
     volumes:
       - "{{ CFG_MOUNT }}/duplicacy-cfg:/config"
-      - "{{ CFG_MOUNT }}/duplicacy-cfg/cache:/cache"      
+      - "{{ CFG_MOUNT }}/duplicacy-cfg/cache:/cache"
       - "{{ CFG_MOUNT }}/logs/duplicacy:/logs"
       - "/nfs/backup:/backup:ro"
     ports:
@@ -380,12 +380,12 @@
   notify: Restart Duplicacy Container
 
 - name: Ensure Unpackerr Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: unpackerr
     image: golift/unpackerr
     user: "{{ UID | string }}:{{ GID | string }}"
     env:
-      TZ: "{{ TIME_ZONE }}"   
+      TZ: "{{ TIME_ZONE }}"
     volumes:
       - "{{ UNPACKERR_MOUNT }}"
       - "{{ CFG_MOUNT }}/unpackerr-cfg:/config"
@@ -394,7 +394,7 @@
     restart_policy: always
 
 - name: Ensure Prowlarr Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: prowlarr
     image: linuxserver/prowlarr
     env:
@@ -411,7 +411,7 @@
   notify: Restart Prowlarr Container
 
 - name: Ensure Radarr Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: radarr
     image: linuxserver/radarr:latest
     env:
@@ -424,12 +424,12 @@
     ports:
       - "7878:7878"
     networks:
-      - name: internal-net      
+      - name: internal-net
     restart_policy: always
   notify: Restart Radarr Container
 
 - name: Ensure Sonarr Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: sonarr
     image: linuxserver/sonarr:latest
     env:
@@ -442,12 +442,12 @@
     ports:
       - "8989:8989"
     networks:
-      - name: internal-net      
+      - name: internal-net
     restart_policy: always
   notify: Restart Sonarr Container
 
 - name: Ensure Overseerr Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: overseerr
     image: linuxserver/overseerr:latest
     env:
@@ -459,12 +459,12 @@
     ports:
       - "5055:5055"
     networks:
-      - name: internal-net      
+      - name: internal-net
     restart_policy: always
-  notify: Restart Overseerr Container  
-  
+  notify: Restart Overseerr Container
+
 - name: Ensure Project Send DB Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: projectsend-db
     hostname: projectsend-db
     image: mariadb:10
@@ -477,12 +477,12 @@
     volumes:
       - "{{ CFG_MOUNT }}/projectsend-db-cfg:/var/lib/mysql"
     networks:
-      - name: internal-net      
+      - name: internal-net
     restart_policy: always
-  notify: Restart Project Send DB Container   
+  notify: Restart Project Send DB Container
 
 - name: Ensure Project Send Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: projectsend
     image: linuxserver/projectsend
     env:
@@ -495,21 +495,21 @@
     ports:
       - "8122:80"
     networks:
-      - name: internal-net      
+      - name: internal-net
     restart_policy: always
-  notify: Restart Project Send Container 
+  notify: Restart Project Send Container
 
 - name: Ensure Playwright Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: playwright
     image: browserless/chrome
     networks:
-      - name: internal-net  
+      - name: internal-net
     restart_policy: unless-stopped
   notify: Restart Playwright Container
 
 - name: Ensure Changedetection Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: changedetection
     image: dgtlmoon/changedetection.io:latest
     env:
@@ -519,71 +519,71 @@
     ports:
       - "5000:5000"
     networks:
-      - name: internal-net      
+      - name: internal-net
     restart_policy: always
   notify: Restart Changedetection Container
 
 - name: Ensure Babybuddy Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: babybuddy
     image: lscr.io/linuxserver/babybuddy:latest
     env:
       PUID: "{{ UID | string }}"
       PGID: "{{ GID | string }}"
-      TZ: "{{ TIME_ZONE }}"    
+      TZ: "{{ TIME_ZONE }}"
     volumes:
       - "{{ CFG_MOUNT }}/babybuddy-cfg:/config"
     ports:
       - "8000:8000"
     networks:
-      - name: internal-net      
+      - name: internal-net
     restart_policy: always
   notify: Restart Babybuddy Container
 
 - name: Ensure Calibre-web Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: cw
     image: linuxserver/calibre-web:latest
     env:
       PUID: "{{ UID | string }}"
       PGID: "{{ GID | string }}"
-      TZ: "{{ TIME_ZONE }}"    
+      TZ: "{{ TIME_ZONE }}"
     volumes:
-      - "{{ CFG_MOUNT }}/calibre-web-cfg:/config"    
+      - "{{ CFG_MOUNT }}/calibre-web-cfg:/config"
       - "{{ CFG_MOUNT }}/calibre-cfg:/books"
     ports:
       - "8083:8083"
     networks:
-      - name: internal-net      
+      - name: internal-net
     restart_policy: always
   notify: Restart Calibre-web Container
 
 - name: Ensure Tautulli Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: tautulli
     image: linuxserver/tautulli:latest
     env:
       PUID: "{{ UID | string }}"
       PGID: "{{ GID | string }}"
-      TZ: "{{ TIME_ZONE }}"    
+      TZ: "{{ TIME_ZONE }}"
     volumes:
       - "{{ CFG_MOUNT }}/tautulli-cfg:/config"
     ports:
       - "8181:8181"
     networks:
-      - name: internal-net      
+      - name: internal-net
     restart_policy: always
   notify: Restart Tautulli Container
 
 - name: Ensure Bookstack DB Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: bookstack_db
     image: lscr.io/linuxserver/mariadb:10.11.8
     image_name_mismatch: "recreate"
     env:
       PUID: "{{ UID | string }}"
       PGID: "{{ GID | string }}"
-      TZ: "{{ TIME_ZONE }}"    
+      TZ: "{{ TIME_ZONE }}"
       MYSQL_ROOT_PASSWORD: "{{ BOOKSTACK_MYSQL_ROOT_PASSWORD }}"
       MYSQL_DATABASE: bookstackapp
       MYSQL_USER: bookstack
@@ -591,18 +591,18 @@
     volumes:
       - "{{ CFG_MOUNT }}/bookstack-db-cfg:/config"
     networks:
-      - name: internal-net      
+      - name: internal-net
     restart_policy: unless-stopped
   notify: Restart Bookstack DB Container
 
 - name: Ensure Bookstack Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: bookstack
     image: lscr.io/linuxserver/bookstack:latest
     env:
       PUID: "{{ UID | string }}"
       PGID: "{{ GID | string }}"
-      TZ: "{{ TIME_ZONE }}"    
+      TZ: "{{ TIME_ZONE }}"
       APP_URL: "https://bookstack.{{ DNS_DOMAIN }}"
       DB_HOST: bookstack_db
       DB_PORT: "3306"
@@ -612,14 +612,14 @@
     volumes:
       - "{{ CFG_MOUNT }}/bookstack-cfg:/config"
     ports:
-      - "6875:80"      
+      - "6875:80"
     networks:
-      - name: internal-net      
+      - name: internal-net
     restart_policy: unless-stopped
   notify: Restart Bookstack Container
 
 - name: Ensure Homepage Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: homepage
     image: ghcr.io/gethomepage/homepage:latest
     env:
@@ -628,17 +628,17 @@
       TZ: "{{ TIME_ZONE }}"
     volumes:
       - "{{ CFG_MOUNT }}/homepage-cfg:/app/config"
-      - "{{ CFG_MOUNT }}/homepage-icons:/app/public/icons"      
+      - "{{ CFG_MOUNT }}/homepage-icons:/app/public/icons"
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
     ports:
       - "3000:3000"
     networks:
-      - name: internal-net      
+      - name: internal-net
     restart_policy: always
   notify: Restart Homepage Container
 
 - name: Ensure Homebox Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: homebox
     image: ghcr.io/sysadminsmedia/homebox:latest
     env:
@@ -648,118 +648,118 @@
     ports:
       - "7745:7745"
     networks:
-      - name: internal-net      
+      - name: internal-net
     restart_policy: always
   notify: Restart Homebox Container
 
 - name: Ensure Watchtower Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: watchtower
     image: containrrr/watchtower:latest
     volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock"    
-    command: --cleanup      
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    command: --cleanup
     networks:
       - name: internal-net
     restart_policy: always
-  notify: Restart Watchtower Container  
+  notify: Restart Watchtower Container
 
 - name: Allow SSH access through UFW
-  ufw:
+  community.general.ufw:
     rule: allow
     name: OpenSSH
-  become: yes
+  become: true
 
 - name: Allow traffic on port 80 for Nginx
-  ufw:
+  community.general.ufw:
     rule: allow
-    port: '80'
+    port: "80"
     proto: tcp
-  become: yes
+  become: true
 
 - name: Allow traffic on port 443 for Nginx
-  ufw:
+  community.general.ufw:
     rule: allow
-    port: '443'
+    port: "443"
     proto: tcp
-  become: yes
+  become: true
 
 - name: Enable ufw
-  ufw:
+  community.general.ufw:
     state: enabled
-  become: yes
+  become: true
 
 - name: Ensure the /etc/letsencrypt/live/{{ DNS_DOMAIN }} directory exists
-  file:
-    path: /etc/letsencrypt/live/{{ DNS_DOMAIN }} 
+  ansible.builtin.file:
+    path: /etc/letsencrypt/live/{{ DNS_DOMAIN }}
     state: directory
-    mode: '0755'
+    mode: "0755"
     owner: root
     group: root
-  become: yes
+  become: true
 
 - name: Ensure the /etc/letsencrypt/archive/{{ DNS_DOMAIN }} directory exists
-  file:
-    path: /etc/letsencrypt/archive/{{ DNS_DOMAIN }} 
+  ansible.builtin.file:
+    path: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}
     state: directory
-    mode: '0755'
+    mode: "0755"
     owner: root
     group: root
-  become: yes
+  become: true
 
 - name: Copy cert files to target
-  copy:
+  ansible.builtin.copy:
     src: "/etc/letsencrypt/live/{{ DNS_DOMAIN }}/{{ item.src }}"
     dest: "/etc/letsencrypt/archive/{{ DNS_DOMAIN }}/{{ item.dest }}"
     mode: "{{ item.mode }}"
     owner: root
     group: root
   loop:
-    - { src: 'cert.pem', dest: 'cert.pem', mode: '0644' }
-    - { src: 'chain.pem', dest: 'chain.pem', mode: '0644' }
-    - { src: 'fullchain.pem', dest: 'fullchain.pem', mode: '0644' }
-    - { src: 'privkey.pem', dest: 'privkey.pem', mode: '0600' }
-  become: yes
-  notify: Restart Nginx 
-  
+    - { src: "cert.pem", dest: "cert.pem", mode: "0644" }
+    - { src: "chain.pem", dest: "chain.pem", mode: "0644" }
+    - { src: "fullchain.pem", dest: "fullchain.pem", mode: "0644" }
+    - { src: "privkey.pem", dest: "privkey.pem", mode: "0600" }
+  become: true
+  notify: Restart Nginx
+
 - name: Ensure symlinks for /etc/letsencrypt/live/{{ DNS_DOMAIN }} are set
-  file:
+  ansible.builtin.file:
     src: "/etc/letsencrypt/archive/{{ DNS_DOMAIN }}/{{ item.src }}"
     dest: "/etc/letsencrypt/live/{{ DNS_DOMAIN }}/{{ item.dest }}"
     state: link
     owner: root
     group: root
   loop:
-    - { src: 'cert.pem', dest: 'cert.pem' }
-    - { src: 'chain.pem', dest: 'chain.pem' }
-    - { src: 'fullchain.pem', dest: 'fullchain.pem' }
-    - { src: 'privkey.pem', dest: 'privkey.pem' }
-  become: yes
+    - { src: "cert.pem", dest: "cert.pem" }
+    - { src: "chain.pem", dest: "chain.pem" }
+    - { src: "fullchain.pem", dest: "fullchain.pem" }
+    - { src: "privkey.pem", dest: "privkey.pem" }
+  become: true
 
 - name: Ensure /etc/nginx/ssl directory exists
-  file:
+  ansible.builtin.file:
     path: /etc/nginx/ssl
     state: directory
     owner: root
     group: root
-    mode: '0700'
-  become: yes
+    mode: "0700"
+  become: true
 
 - name: Generate strong DH parameters
-  command:
+  ansible.builtin.command:
     cmd: openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
     creates: /etc/nginx/ssl/dhparam.pem
-  become: yes
+  become: true
 
 - name: Update Nginx configuration using template
-  template:
+  ansible.builtin.template:
     src: nginx.conf.j2
     dest: /etc/nginx/nginx.conf
-  become: yes
+  become: true
   notify: Restart Nginx
 
 - name: Place Nginx config for services
-  template:
+  ansible.builtin.template:
     src: "{{ item }}.conf.j2"
     dest: "/etc/nginx/sites-available/{{ item }}.conf"
   loop:
@@ -771,7 +771,7 @@
     - ha
     - links
     - duplicacy
-    - prowlarr  
+    - prowlarr
     - radarr
     - sonarr
     - overseerr
@@ -782,11 +782,11 @@
     - bookstack
     - homebox
     - home
-  become: yes
+  become: true
   notify: Restart Nginx
 
 - name: Symlink Nginx config to sites-enabled for services
-  file:
+  ansible.builtin.file:
     src: "/etc/nginx/sites-available/{{ item }}.conf"
     dest: "/etc/nginx/sites-enabled/{{ item }}.conf"
     state: link
@@ -799,7 +799,7 @@
     - ha
     - links
     - duplicacy
-    - prowlarr  
+    - prowlarr
     - radarr
     - sonarr
     - overseerr
@@ -807,38 +807,38 @@
     - cd
     - babybuddy
     - tautulli
-    - bookstack    
-    - homebox    
+    - bookstack
+    - homebox
     - home
-  become: yes
+  become: true
   notify: Restart Nginx
 
 - name: Ensure default site is not enabled
-  file:
+  ansible.builtin.file:
     path: "/etc/nginx/sites-enabled/default"
     state: absent
-  become: yes
-  notify: Restart Nginx 
+  become: true
+  notify: Restart Nginx
 
 - name: Ensure Nginx is running and enabled at boot
-  service:
+  ansible.builtin.service:
     name: nginx
     state: started
-    enabled: yes
-  become: yes
+    enabled: true
+  become: true
 
 - name: Set up cron job for system package updates
-  cron:
+  ansible.builtin.cron:
     name: "System Package Updates"
     hour: "4"
     minute: "0"
     job: "apt-get update && apt-get upgrade -y"
-  become: yes
+  become: true
 
 - name: Set up cron job for paperless backup
-  cron:
+  ansible.builtin.cron:
     name: "Export documents from paperless"
     minute: "0"
     hour: "4"
     job: "sudo docker exec paperless document_exporter ../export"
-  become: yes
+  become: true

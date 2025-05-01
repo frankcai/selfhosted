@@ -1,165 +1,165 @@
 ---
 - name: Restart Nginx
-  service:
+  ansible.builtin.service:
     name: nginx
     state: restarted
-  become: yes
+  become: true
 - name: Restart Calibre-web Container
-  docker_container:
+  community.docker.docker_container:
     name: cw
     state: started
-    restart: yes
-  become: yes    
+    restart: true
+  become: true
 - name: Restart Paperless-DB Container
-  docker_container:
+  community.docker.docker_container:
     name: paperless-db
     state: started
-    restart: yes
-  become: yes    
+    restart: true
+  become: true
 - name: Restart Paperless Container
-  docker_container:
+  community.docker.docker_container:
     name: paperless
     state: started
-    restart: yes
-  become: yes  
+    restart: true
+  become: true
 - name: Restart Paperless-tika Container
-  docker_container:
+  community.docker.docker_container:
     name: paperless-tika
     state: started
-    restart: yes
-  become: yes  
+    restart: true
+  become: true
 - name: Restart Paperless-gotenberg Container
-  docker_container:
+  community.docker.docker_container:
     name: paperless-gotenberg
     state: started
-    restart: yes
-  become: yes  
+    restart: true
+  become: true
 - name: Restart Paperless-redis Container
-  docker_container:
+  community.docker.docker_container:
     name: paperless-redis
     state: started
-    restart: yes
-  become: yes          
+    restart: true
+  become: true
 - name: Restart Home-Assistant-DB Container
-  docker_container:
+  community.docker.docker_container:
     name: home-assistant-db
     state: started
-    restart: yes
-  become: yes    
+    restart: true
+  become: true
 - name: Restart Home-Assistant Container
-  docker_container:
+  community.docker.docker_container:
     name: home-assistant
     state: started
-    restart: yes
-  become: yes        
+    restart: true
+  become: true
 - name: Restart Linkding Container
-  docker_container:
+  community.docker.docker_container:
     name: linkding
     state: started
-    restart: yes
-  become: yes     
+    restart: true
+  become: true
 - name: Restart Duplicacy Container
-  docker_container:
+  community.docker.docker_container:
     name: duplicacy
     state: started
-    restart: yes
-  become: yes    
+    restart: true
+  become: true
 - name: Restart Prowlarr Container
-  docker_container:
+  community.docker.docker_container:
     name: prowlarr
     state: started
-    restart: yes
-  become: yes  
+    restart: true
+  become: true
 - name: Restart Radarr Container
-  docker_container:
+  community.docker.docker_container:
     name: radarr
     state: started
-    restart: yes
-  become: yes  
+    restart: true
+  become: true
 - name: Restart Sonarr Container
-  docker_container:
+  community.docker.docker_container:
     name: sonarr
     state: started
-    restart: yes
-  become: yes    
+    restart: true
+  become: true
 - name: Restart Overseerr Container
-  docker_container:
+  community.docker.docker_container:
     name: overseerr
     state: started
-    restart: yes
-  become: yes      
+    restart: true
+  become: true
 - name: Restart Project Send Container
-  docker_container:
+  community.docker.docker_container:
     name: projectsend
     state: started
-    restart: yes
-  become: yes    
+    restart: true
+  become: true
 - name: Restart Project Send DB Container
-  docker_container:
+  community.docker.docker_container:
     name: projectsend-db
     state: started
-    restart: yes
-  become: yes   
+    restart: true
+  become: true
 - name: Restart Playwright Container
-  docker_container:
+  community.docker.docker_container:
     name: playwright
     state: started
-    restart: yes
-  become: yes    
+    restart: true
+  become: true
 - name: Restart Changedetection Container
-  docker_container:
+  community.docker.docker_container:
     name: changedetection
     state: started
-    restart: yes
-  become: yes      
+    restart: true
+  become: true
 - name: Restart Babybuddy Container
-  docker_container:
+  community.docker.docker_container:
     name: babybuddy
     state: started
-    restart: yes
-  become: yes   
+    restart: true
+  become: true
 - name: Restart Tautulli Container
-  docker_container:
+  community.docker.docker_container:
     name: tautulli
     state: started
-    restart: yes
-  become: yes      
+    restart: true
+  become: true
 - name: Restart Bookstack DB Container
-  docker_container:
+  community.docker.docker_container:
     name: bookstack_db
     state: started
-    restart: yes
-  become: yes   
+    restart: true
+  become: true
 - name: Restart Bookstack Container
-  docker_container:
+  community.docker.docker_container:
     name: bookstack
     state: started
-    restart: yes
-  become: yes       
+    restart: true
+  become: true
 - name: Restart Homepage Container
-  docker_container:
+  community.docker.docker_container:
     name: homepage
     state: started
-    restart: yes
-  become: yes        
+    restart: true
+  become: true
 - name: Restart Homebox Container
-  docker_container:
+  community.docker.docker_container:
     name: homebox
     state: started
-    restart: yes
-  become: yes          
+    restart: true
+  become: true
 - name: Restart Watchtower Container
-  docker_container:
+  community.docker.docker_container:
     name: watchtower
     state: started
-    restart: yes
-  become: yes         
+    restart: true
+  become: true
 - name: Restart Docker
   ansible.builtin.service:
     name: docker
     state: restarted
-  become: yes  
+  become: true
 - name: Reload Daemon
   ansible.builtin.systemd:
-    daemon_reload: yes
-  become: yes 
+    daemon_reload: true
+  become: true

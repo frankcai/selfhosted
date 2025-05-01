@@ -1,5 +1,6 @@
+---
 - name: Restart BIND
-  service:
+  ansible.builtin.service:
     name: bind9
     state: restarted
-  become: yes
+  become: true

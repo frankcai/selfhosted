@@ -1,56 +1,56 @@
 ---
 - name: Set DNS server for systemd-resolved
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/systemd/resolved.conf
-    regexp: '^#?DNS='
+    regexp: "^#?DNS="
     line: "DNS={{ DNS_HOST }}"
     state: present
-  become: yes
+  become: true
 
 - name: Restart systemd-resolved
-  systemd:
+  ansible.builtin.systemd:
     name: systemd-resolved
     state: restarted
-  become: yes
+  become: true
 
 - name: Link resolv.conf to systemd-resolved
-  file:
+  ansible.builtin.file:
     src: /run/systemd/resolve/resolv.conf
     dest: /etc/resolv.conf
     state: link
-  become: yes
+  become: true
 
 - name: Install required packages
-  apt:
+  ansible.builtin.apt:
     name:
       - wireguard
       - ufw
     state: present
   when: ansible_os_family == "Debian"
-  become: yes
+  become: true
 
 - name: Allow SSH access through UFW
-  ufw:
+  community.general.ufw:
     rule: allow
     name: OpenSSH
-  become: yes
+  become: true
 
 - name: Enable ufw
-  ufw:
+  community.general.ufw:
     state: enabled
-  become: yes
+  become: true
 
 - name: Configure WireGuard
-  template:
+  ansible.builtin.template:
     src: wireguard.conf.j2
     dest: /etc/wireguard/wg0.conf
   notify:
-    - Restart WireGuard  
-  become: yes
+    - Restart WireGuard
+  become: true
 
 - name: Enable IPv4 forwarding
-  sysctl:
+  ansible.posix.sysctl:
     name: net.ipv4.ip_forward
-    value: '1'
+    value: "1"
     state: present
-    reload: yes    
+    reload: true

@@ -1,18 +1,18 @@
 ---
 - name: Restart Nginx
-  service:
+  ansible.builtin.service:
     name: nginx
     state: restarted
-  become: yes
+  become: true
 - name: Restart WireGuard
-  systemd:
+  ansible.builtin.systemd:
     name: wg-quick@wg0
     state: restarted
-    enabled: yes
-  become: yes
+    enabled: true
+  become: true
 - name: Restart Uptime Kuma Container
-  docker_container:
+  community.docker.docker_container:
     name: upremote
     state: started
-    restart: yes
-  become: yes      
+    restart: true
+  become: true

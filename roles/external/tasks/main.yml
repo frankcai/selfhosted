@@ -1,27 +1,27 @@
 ---
 - name: Set DNS server for systemd-resolved
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/systemd/resolved.conf
-    regexp: '^#?DNS='
+    regexp: "^#?DNS="
     line: "DNS={{ DNS_HOST }}"
     state: present
-  become: yes
+  become: true
 
 - name: Restart systemd-resolved
-  systemd:
+  ansible.builtin.systemd:
     name: systemd-resolved
     state: restarted
-  become: yes
+  become: true
 
 - name: Link resolv.conf to systemd-resolved
-  file:
+  ansible.builtin.file:
     src: /run/systemd/resolve/resolv.conf
     dest: /etc/resolv.conf
     state: link
-  become: yes
+  become: true
 
 - name: Install required packages
-  apt:
+  ansible.builtin.apt:
     name:
       - nfs-common
       - docker.io
@@ -33,76 +33,78 @@
       - python3-certbot-dns-cloudflare
     state: present
   when: ansible_os_family == "Debian"
-  become: yes
+  become: true
 
 - name: Check if wireguard route exists
   ansible.builtin.command: ip route show {{ WG_NETWORK }} via {{ VPN_HOST }} dev ens18 proto static
   register: route_check
-  ignore_errors: yes
-  become: yes
+  ignore_errors: true
+  become: true
 
 - name: Add route to wireguard network if not exists
   ansible.builtin.command: ip route add {{ WG_NETWORK }} via {{ VPN_HOST }} dev ens18 proto static onlink
   when: route_check.rc != 0
-  become: yes
+  become: true
 
 - name: Check if NFS directories exist
-  stat:
+  ansible.builtin.stat:
     path: "{{ item.dest }}"
   register: dir_status
   loop: "{{ NFS_MOUNTS }}"
-    
+
 - name: Create required NFS directories if they don't exist
-  file:
+  ansible.builtin.file:
     path: "{{ item.item }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
   loop: "{{ dir_status.results }}"
   when: item.stat.exists == false
-  become: yes
-  
+  become: true
+
 - name: Add NFS mounts to /etc/fstab
-  blockinfile:
+  ansible.builtin.blockinfile:
     path: /etc/fstab
     block: |
       {% for MOUNT in NFS_MOUNTS %}
       {{ NFS_SERVER }}:{{ MOUNT.source }} {{ MOUNT.dest }} nfs {{ MOUNT.options }} 0 0
       {% endfor %}
-  become: yes
+  become: true
 
 - name: Test NFS mounts block
   block:
     - name: Test NFS mounts
-      command:
+      ansible.builtin.command:
         cmd: mount -a
-      become: yes
+      become: true
       register: mount_test
       failed_when: mount_test.rc != 0
   rescue:
     - name: Refresh DNS by restarting systemd-resolved service on failure
-      become: yes
+      become: true
       ansible.builtin.systemd:
         name: systemd-resolved.service
         state: restarted
 
     - name: Retry Test NFS mounts after refreshing DNS
-      command:
+      ansible.builtin.command:
         cmd: mount -a
-      become: yes
+      become: true
       register: mount_retry
       failed_when: mount_retry.rc != 0
 
 - name: Configure persistent route in netplan
+  when: ansible_os_family == "Debian"
+
   block:
     - name: Ensure netplan configuration directory exists
-      file:
+      ansible.builtin.file:
         path: /etc/netplan
         state: directory
-        mode: '0755'
-      become: yes
+        mode: "0755"
+      become: true
 
     - name: Add persistent route to netplan configuration
-      copy:
+      ansible.builtin.copy:
         dest: /etc/netplan/01-netcfg.yaml
         content: |
           network:
@@ -113,37 +115,35 @@
                 routes:
                   - to: "{{ WG_NETWORK }}"
                     via: "{{ VPN_HOST }}"
-      become: yes
+      become: true
 
     - name: Apply netplan configuration
-      command: netplan apply
-      become: yes
-  when: ansible_os_family == "Debian"
-
+      ansible.builtin.command: netplan apply
+      become: true
 - name: Add user to docker group
-  user:
+  ansible.builtin.user:
     name: "{{ ansible_user }}"
     groups: docker
-    append: yes
-  become: yes
+    append: true
+  become: true
   when: ansible_os_family == "Debian"
 
 - name: Ensure Docker service is started and enabled
-  service:
+  ansible.builtin.service:
     name: docker
     state: started
-    enabled: yes
-  become: yes
+    enabled: true
+  become: true
 
 - name: Set docker socket permissions
-  file:
+  ansible.builtin.file:
     path: /var/run/docker.sock
     group: docker
-    mode: '0660'
-  become: yes
+    mode: "0660"
+  become: true
 
 - name: Ensure Uptime Kuma Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: uplocal
     image: louislam/uptime-kuma:1
     volumes:
@@ -158,13 +158,13 @@
   notify: Restart Uptime Kuma Container
 
 - name: Ensure Plex Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: plex
     image: plexinc/pms-docker:latest
     env:
       PLEX_UID: "{{ UID | string }}"
       PLEX_GID: "{{ GID | string }}"
-      TZ:    "{{ TIME_ZONE }}"
+      TZ: "{{ TIME_ZONE }}"
       ALLOWED_NETWORKS: "{{ INTERNAL_NETWORK }}"
     volumes:
       - "{{ PLEX_MOUNT_1 }}"
@@ -186,7 +186,7 @@
   notify: Restart Plex Container
 
 - name: Ensure Jellyfin Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: jellyfin
     image: lscr.io/linuxserver/jellyfin:latest
     env:
@@ -203,12 +203,12 @@
       - "8096:8096"
       - "8920:8920"
       - "7359:7359/udp"
-      - "1900:1900/udp"   
+      - "1900:1900/udp"
     restart_policy: always
   notify: Restart Jellyfin Container
 
 - name: Ensure Ntfy Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: ntfy
     image: binwiederhier/ntfy:latest
     command:
@@ -224,7 +224,7 @@
   notify: Restart Ntfy Container
 
 - name: Ensure Vaultwarden Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: vaultwarden
     image: vaultwarden/server:latest
     user: "{{ UID | string }}:{{ GID | string }}"
@@ -232,7 +232,7 @@
       TZ: "{{ TIME_ZONE }}"
       WEBSOCKET_ENABLED: "true"
       SHOW_PASSWORD_HINT: "false"
-      SIGNUPS_ALLOWED: "false" 
+      SIGNUPS_ALLOWED: "false"
     volumes:
       - "{{ CFG_MOUNT }}/vaultwarden-cfg/:/data/"
     ports:
@@ -241,7 +241,7 @@
   notify: Restart Vaultwarden Container
 
 - name: Ensure ChatGPT Next Web Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: chatgpt-next-web
     image: yidadaa/chatgpt-next-web
     env:
@@ -254,135 +254,134 @@
     restart_policy: always
 
 - name: Ensure Watchtower Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: watchtower
     image: containrrr/watchtower:latest
     volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock"    
-    command: --cleanup           
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    command: --cleanup
     restart_policy: always
-  notify: Restart Watchtower Container  
+  notify: Restart Watchtower Container
 
 - name: Allow SSH access through UFW
-  ufw:
+  community.general.ufw:
     rule: allow
     name: OpenSSH
-  become: yes
+  become: true
 
 - name: Allow traffic on port 80 for Nginx
-  ufw:
+  community.general.ufw:
     rule: allow
-    port: '80'
+    port: "80"
     proto: tcp
-  become: yes
+  become: true
 
 - name: Allow traffic on port 443 for Nginx
-  ufw:
+  community.general.ufw:
     rule: allow
-    port: '443'
+    port: "443"
     proto: tcp
-  become: yes
+  become: true
 
 - name: Enable ufw
-  ufw:
+  community.general.ufw:
     state: enabled
-  become: yes
+  become: true
 
 - name: Create Cloudflare credentials file for Certbot
-  copy:
+  ansible.builtin.copy:
     dest: "/etc/letsencrypt/cloudflare.ini"
     content: |
       dns_cloudflare_api_token = {{ CLOUDFLARE_API_TOKEN }}
-    mode: '0600'
-    owner: 'root'
-    group: 'root'
-  become: yes
+    mode: "0600"
+    owner: "root"
+    group: "root"
+  become: true
   when: ansible_os_family == "Debian"
 
 - name: Obtain or renew wildcard SSL certificates from Let's Encrypt using Cloudflare
-  command:
+  ansible.builtin.command:
     cmd: >
-      certbot certonly --agree-tos --non-interactive 
-      --email {{ LETSENCRYPT_EMAIL }}
+      certbot certonly --agree-tos --non-interactive  --email {{ LETSENCRYPT_EMAIL }}
       --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini
       -d {{ DNS_DOMAIN }} -d *.{{ DNS_DOMAIN }}
       --keep-until-expiring
-  become: yes
+  become: true
   when: ansible_os_family == "Debian"
   register: certbot_output
   changed_when: "'Congratulations' in certbot_output.stdout"
 
 - name: Get stat of remote file
-  stat:
+  ansible.builtin.stat:
     path: /etc/letsencrypt/live/{{ DNS_DOMAIN }}/fullchain.pem
   register: cert_stat
-  become: yes
+  become: true
 
 - name: Get stat of local file
-  stat:
+  ansible.builtin.stat:
     path: /etc/letsencrypt/live/{{ DNS_DOMAIN }}/fullchain.pem
   register: local_cert_stat
   delegate_to: localhost
-  become: yes
-  ignore_errors: yes
+  become: true
+  ignore_errors: true
 
-- block:
-  - name: Ensure the destination directory exists on local Ansible controller
-    file:
-      path: /etc/letsencrypt/live/{{ DNS_DOMAIN }}
-      state: directory
-      mode: '0755'
-      owner: 'root'
-      group: 'root'
-    delegate_to: localhost
-    become: yes 
+- when: (not local_cert_stat.stat.exists) or (cert_stat.stat.exists and cert_stat.stat.mtime > local_cert_stat.stat.mtime)
 
-  - name: Synchronize SSL certs from remote to Ansible controller
-    synchronize:
-      src: /etc/letsencrypt/live/{{ DNS_DOMAIN }}/
-      dest: /etc/letsencrypt/live/{{ DNS_DOMAIN }}/
-      mode: pull
-      rsync_opts:
-        - "--copy-links"
-    become: yes
-    notify: Restart Nginx
+  block:
+    - name: Ensure the destination directory exists on local Ansible controller
+      ansible.builtin.file:
+        path: /etc/letsencrypt/live/{{ DNS_DOMAIN }}
+        state: directory
+        mode: "0755"
+        owner: "root"
+        group: "root"
+      delegate_to: localhost
+      become: true
 
-  when: (not local_cert_stat.stat.exists) or (cert_stat.stat.exists and cert_stat.stat.mtime > local_cert_stat.stat.mtime)
+    - name: Synchronize SSL certs from remote to Ansible controller
+      ansible.posix.synchronize:
+        src: /etc/letsencrypt/live/{{ DNS_DOMAIN }}/
+        dest: /etc/letsencrypt/live/{{ DNS_DOMAIN }}/
+        mode: pull
+        rsync_opts:
+          - "--copy-links"
+      become: true
+      notify: Restart Nginx
 
 - name: Prune old cert versions in the archive, keep only current + 2
-  shell: |
+  ansible.builtin.shell: |
     for type in cert chain fullchain privkey; do
       ls -1t /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/${type}*.pem \
         | tail -n +4 \
         | xargs -r rm -f
     done
-  become: yes
+  become: true
   when: ansible_os_family == "Debian"
 
 - name: Ensure /etc/nginx/ssl directory exists
-  file:
+  ansible.builtin.file:
     path: /etc/nginx/ssl
     state: directory
     owner: root
     group: root
-    mode: '0700'
-  become: yes
+    mode: "0700"
+  become: true
 
 - name: Generate strong DH parameters
-  command:
+  ansible.builtin.command:
     cmd: openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
     creates: /etc/nginx/ssl/dhparam.pem
-  become: yes
+  become: true
 
 - name: Update Nginx configuration using template
-  template:
+  ansible.builtin.template:
     src: nginx.conf.j2
     dest: /etc/nginx/nginx.conf
-  become: yes
+  become: true
   notify: Restart Nginx
 
 - name: Place Nginx config for services
-  template:
+  ansible.builtin.template:
     src: "{{ item }}.conf.j2"
     dest: "/etc/nginx/sites-available/{{ item }}.conf"
   loop:
@@ -396,11 +395,11 @@
     - file
     - amp
     - ntfy
-  become: yes
+  become: true
   notify: Restart Nginx
 
 - name: Symlink Nginx config to sites-enabled for services
-  file:
+  ansible.builtin.file:
     src: "/etc/nginx/sites-available/{{ item }}.conf"
     dest: "/etc/nginx/sites-enabled/{{ item }}.conf"
     state: link
@@ -415,35 +414,35 @@
     - file
     - amp
     - ntfy
-  become: yes
+  become: true
   notify: Restart Nginx
-  
+
 - name: Ensure default site is not enabled
-  file:
+  ansible.builtin.file:
     path: "/etc/nginx/sites-enabled/default"
     state: absent
-  become: yes
-  notify: Restart Nginx 
+  become: true
+  notify: Restart Nginx
 
 - name: Ensure Nginx is running and enabled at boot
-  service:
+  ansible.builtin.service:
     name: nginx
     state: started
-    enabled: yes
-  become: yes
+    enabled: true
+  become: true
 
 - name: Set up cron job for cert renewal
-  cron:
+  ansible.builtin.cron:
     name: "Certbot Renewal"
     hour: "2"
     minute: "30"
     job: "certbot renew --quiet --post-hook 'systemctl reload nginx'"
-  become: yes
+  become: true
 
 - name: Set up cron job for system package updates
-  cron:
+  ansible.builtin.cron:
     name: "System Package Updates"
     hour: "4"
     minute: "0"
     job: "apt-get update && apt-get upgrade -y"
-  become: yes
+  become: true

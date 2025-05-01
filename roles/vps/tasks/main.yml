@@ -1,41 +1,41 @@
 ---
 - name: Create systemd-resolved configuration directory
-  file:
+  ansible.builtin.file:
     path: /etc/systemd/resolved.conf.d
     state: directory
-    mode: '0755'
-  become: yes
+    mode: "0755"
+  become: true
 
 - name: Configure per-domain DNS server for self-hosted services
-  copy:
+  ansible.builtin.copy:
     dest: /etc/systemd/resolved.conf.d/10-selfhosted.conf
     content: |
       [Resolve]
       DNS={{ DNS_HOST }}
       Domains=~{{ DNS_DOMAIN }}
-    mode: '0644'
-  become: yes
+    mode: "0644"
+  become: true
 
 - name: Restart systemd-resolved
-  systemd:
+  ansible.builtin.systemd:
     name: systemd-resolved
     state: restarted
-  become: yes
+  become: true
 
 - name: Link resolv.conf to systemd-resolved
-  file:
+  ansible.builtin.file:
     src: /run/systemd/resolve/resolv.conf
     dest: /etc/resolv.conf
     state: link
-  become: yes
+  become: true
 
 - name: Run apt update
   ansible.builtin.apt:
-    update_cache: yes
-  become: yes
+    update_cache: true
+  become: true
 
 - name: Install required packages
-  apt:
+  ansible.builtin.apt:
     name:
       - nginx
       - fail2ban
@@ -43,76 +43,76 @@
       - docker.io
     state: present
   when: ansible_os_family == "Debian"
-  become: yes
+  become: true
 
 - name: Ensure the /etc/letsencrypt/live/{{ DNS_DOMAIN }} directory exists
-  file:
-    path: /etc/letsencrypt/live/{{ DNS_DOMAIN }} 
+  ansible.builtin.file:
+    path: /etc/letsencrypt/live/{{ DNS_DOMAIN }}
     state: directory
-    mode: '0755'
+    mode: "0755"
     owner: root
     group: root
-  become: yes
+  become: true
 
 - name: Ensure the /etc/letsencrypt/archive/{{ DNS_DOMAIN }} directory exists
-  file:
-    path: /etc/letsencrypt/archive/{{ DNS_DOMAIN }} 
+  ansible.builtin.file:
+    path: /etc/letsencrypt/archive/{{ DNS_DOMAIN }}
     state: directory
-    mode: '0755'
+    mode: "0755"
     owner: root
     group: root
-  become: yes
+  become: true
 
 - name: Copy cert files to target
-  copy:
+  ansible.builtin.copy:
     src: "/etc/letsencrypt/live/{{ DNS_DOMAIN }}/{{ item.src }}"
     dest: "/etc/letsencrypt/archive/{{ DNS_DOMAIN }}/{{ item.dest }}"
     mode: "{{ item.mode }}"
     owner: root
     group: root
   loop:
-    - { src: 'cert.pem', dest: 'cert.pem', mode: '0644' }
-    - { src: 'chain.pem', dest: 'chain.pem', mode: '0644' }
-    - { src: 'fullchain.pem', dest: 'fullchain.pem', mode: '0644' }
-    - { src: 'privkey.pem', dest: 'privkey.pem', mode: '0600' }
-  become: yes
+    - { src: "cert.pem", dest: "cert.pem", mode: "0644" }
+    - { src: "chain.pem", dest: "chain.pem", mode: "0644" }
+    - { src: "fullchain.pem", dest: "fullchain.pem", mode: "0644" }
+    - { src: "privkey.pem", dest: "privkey.pem", mode: "0600" }
+  become: true
   notify: Restart Nginx
 
 - name: Ensure symlinks for /etc/letsencrypt/live/{{ DNS_DOMAIN }} are set
-  file:
+  ansible.builtin.file:
     src: "/etc/letsencrypt/archive/{{ DNS_DOMAIN }}/{{ item.src }}"
     dest: "/etc/letsencrypt/live/{{ DNS_DOMAIN }}/{{ item.dest }}"
     state: link
     owner: root
     group: root
   loop:
-    - { src: 'cert.pem', dest: 'cert.pem' }
-    - { src: 'chain.pem', dest: 'chain.pem' }
-    - { src: 'fullchain.pem', dest: 'fullchain.pem' }
-    - { src: 'privkey.pem', dest: 'privkey.pem' }
-  become: yes
+    - { src: "cert.pem", dest: "cert.pem" }
+    - { src: "chain.pem", dest: "chain.pem" }
+    - { src: "fullchain.pem", dest: "fullchain.pem" }
+    - { src: "privkey.pem", dest: "privkey.pem" }
+  become: true
   notify: Restart Nginx
 
 - name: Ensure /etc/nginx/ssl directory exists
-  file:
+  ansible.builtin.file:
     path: /etc/nginx/ssl
     state: directory
     owner: root
     group: root
-    mode: '0700'
-  become: yes
+    mode: "0700"
+  become: true
 
 - name: Generate strong DH parameters
-  command:
+  ansible.builtin.command:
     cmd: openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
     creates: /etc/nginx/ssl/dhparam.pem
-  become: yes
+  become: true
 
 - name: Update Nginx configuration using template
-  template:
+  ansible.builtin.template:
     src: nginx.conf.j2
     dest: /etc/nginx/nginx.conf
-  become: yes
+  become: true
   notify: Restart Nginx
 
 - name: Deploy WireGuard Configuration
@@ -120,49 +120,49 @@
     src: wireguard.conf.j2
     dest: /etc/wireguard/wg0.conf
   notify:
-    - Restart WireGuard      
-  become: yes    
+    - Restart WireGuard
+  become: true
 
 - name: Enable and Start WireGuard
   ansible.builtin.systemd:
     name: wg-quick@wg0
     state: started
-    enabled: yes
-    daemon_reload: yes  
-  become: yes
+    enabled: true
+    daemon_reload: true
+  become: true
 
 - name: Enable IPv4 forwarding
-  sysctl:
+  ansible.posix.sysctl:
     name: net.ipv4.ip_forward
-    value: '1'
+    value: "1"
     state: present
-    reload: yes     
-  become: yes   
+    reload: true
+  become: true
 
 - name: Add user to docker group
-  user:
+  ansible.builtin.user:
     name: "{{ ansible_user }}"
     groups: docker
-    append: yes
-  become: yes
+    append: true
+  become: true
   when: ansible_os_family == "Debian"
 
 - name: Ensure Docker service is started and enabled
-  service:
+  ansible.builtin.service:
     name: docker
     state: started
-    enabled: yes
-  become: yes
+    enabled: true
+  become: true
 
 - name: Set docker socket permissions
-  file:
+  ansible.builtin.file:
     path: /var/run/docker.sock
     group: docker
-    mode: '0660'
-  become: yes
+    mode: "0660"
+  become: true
 
 - name: Ensure Uptime Kuma Docker container is running
-  docker_container:
+  community.docker.docker_container:
     name: upremote
     image: louislam/uptime-kuma:1
     ports:
@@ -171,44 +171,44 @@
   notify: Restart Uptime Kuma Container
 
 - name: Place Nginx config for services
-  template:
+  ansible.builtin.template:
     src: "{{ item }}.conf.j2"
     dest: "/etc/nginx/sites-available/{{ item }}.conf"
   loop:
     - redirect
     - upremote
-  become: yes
+  become: true
   notify: Restart Nginx
 
 - name: Symlink Nginx config to sites-enabled for services
-  file:
+  ansible.builtin.file:
     src: "/etc/nginx/sites-available/{{ item }}.conf"
     dest: "/etc/nginx/sites-enabled/{{ item }}.conf"
     state: link
   loop:
     - redirect
     - upremote
-  become: yes
+  become: true
   notify: Restart Nginx
 
 - name: Ensure default site is not enabled
-  file:
+  ansible.builtin.file:
     path: "/etc/nginx/sites-enabled/default"
     state: absent
-  become: yes
-  notify: Restart Nginx 
+  become: true
+  notify: Restart Nginx
 
 - name: Ensure Nginx is running and enabled at boot
-  service:
+  ansible.builtin.service:
     name: nginx
     state: started
-    enabled: yes
-  become: yes
+    enabled: true
+  become: true
 
 - name: Set up cron job for system package updates
-  cron:
+  ansible.builtin.cron:
     name: "System Package Updates"
     hour: "4"
     minute: "0"
     job: "apt-get update && apt-get upgrade -y"
-  become: yes
+  become: true

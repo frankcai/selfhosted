@@ -1,91 +1,89 @@
 ---
 - name: Update apt cache
-  apt:
-    update_cache: yes
-  become: yes
+  ansible.builtin.apt:
+    update_cache: true
+  become: true
 
 - name: Install necessary packages
-  apt:
+  ansible.builtin.apt:
     name:
       - bind9
       - ufw
     state: present
-  become: yes
+  become: true
 
 - name: Allow DNS traffic (UDP/53)
-  ufw:
+  community.general.ufw:
     rule: allow
-    port: '53'
+    port: "53"
     proto: udp
-  become: yes
+  become: true
 
 - name: Allow DNS traffic (TCP/53) - for zone transfers and larger queries
-  ufw:
+  community.general.ufw:
     rule: allow
-    port: '53'
+    port: "53"
     proto: tcp
-  become: yes
+  become: true
 
 - name: Allow SSH traffic
-  ufw:
+  community.general.ufw:
     rule: allow
-    port: '22'
+    port: "22"
     proto: tcp
-  become: yes
+  become: true
 
 - name: Enable ufw
-  ufw:
+  community.general.ufw:
     state: enabled
-  become: yes
+  become: true
 
 - name: Configure named.conf.local
-  template:
+  ansible.builtin.template:
     src: named.conf.local.j2
     dest: /etc/bind/named.conf.local
     owner: bind
     group: bind
-    mode: '0644'
-  become: yes
+    mode: "0644"
+  become: true
 
 - name: Configure named.conf.options
-  template:
+  ansible.builtin.template:
     src: named.conf.options.j2
     dest: /etc/bind/named.conf.options
     owner: bind
     group: bind
-    mode: '0644'
-  become: yes
+    mode: "0644"
+  become: true
 
 - name: Ensure /etc/bind/zones directory exists
-  file:
+  ansible.builtin.file:
     path: /etc/bind/zones
     state: directory
     owner: bind
     group: bind
-    mode: '0750'
-  become: yes
+    mode: "0750"
+  become: true
 
 - name: Create zone file for {{ DNS_DOMAIN }}
-  template:
+  ansible.builtin.template:
     src: db.domain.j2
     dest: "/etc/bind/zones/db.{{ DNS_DOMAIN }}"
     owner: bind
     group: bind
-    mode: '0644'
+    mode: "0644"
   vars:
-    serial: "{{ lookup('pipe', 'date +%s') }}"    
-  become: yes
+    serial: "{{ lookup('pipe', 'date +%s') }}"
+  become: true
   notify: Restart BIND
 
 - name: Check if wireguard route exists
   ansible.builtin.command: ip route show {{ WG_NETWORK }} via {{ VPN_HOST }} dev ens18 proto static
   register: route_check
-  ignore_errors: yes
-  become: yes
+  ignore_errors: true
+  become: true
 
 - name: Add route to wireguard network if not exists
   ansible.builtin.command: ip route add {{ WG_NETWORK }}  via {{ VPN_HOST }} dev ens18 proto static onlink
   when: route_check.rc != 0
-  become: yes
-
-  
+  become: true
