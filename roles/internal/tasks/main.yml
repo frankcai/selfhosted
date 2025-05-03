@@ -643,6 +643,7 @@
       PUID: "{{ UID | string }}"
       PGID: "{{ GID | string }}"
       TZ: "{{ TIME_ZONE }}"
+      HOMEPAGE_ALLOWED_HOSTS: "home.{{ DNS_DOMAIN }}"
     volumes:
       - "{{ CFG_MOUNT }}/homepage-cfg:/app/config"
       - "{{ CFG_MOUNT }}/homepage-icons:/app/public/icons"
