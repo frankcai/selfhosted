@@ -4,6 +4,18 @@
     name: nginx
     state: restarted
   become: true
+- name: Restart Mosquitto Container
+  community.docker.docker_container:
+    name: mosquitto
+    state: started
+    restart: true
+  become: true    
+- name: Restart Zigbee2mqtt Container  
+  community.docker.docker_container:
+    name: mqtt
+    state: started
+    restart: true
+  become: true  
 - name: Restart Calibre-web Container
   community.docker.docker_container:
     name: cw

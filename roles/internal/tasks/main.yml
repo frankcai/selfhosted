@@ -557,6 +557,40 @@
     restart_policy: always
   notify: Restart Babybuddy Container
 
+- name: Ensure Mosquitto Docker container is running
+  community.docker.docker_container:
+    name: mosquitto
+    hostname: mosquitto
+    image: eclipse-mosquitto:2.0
+    env:
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/mosquitto-cfg:/mosquitto/config"
+      - "{{ CFG_MOUNT }}/mosquitto-data:/mosquitto/data"
+      - "{{ CFG_MOUNT }}/mosquitto-logs:/mosquitto/log"
+    networks:
+      - name: internal-net
+    restart_policy: always
+  notify: Restart Mosquitto Container
+
+- name: Ensure Zigbee2mqtt Docker container is running
+  community.docker.docker_container:
+    name: mqtt
+    image: ghcr.io/koenkk/zigbee2mqtt:latest
+    env:
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/zigbee2mqtt-cfg:/app/data"
+      - /run/udev:/run/udev:ro
+    devices:
+      - "{{ MQTT_DEVICE_MAPPING }}"
+    ports:
+      - "8544:8080"
+    networks:
+      - name: internal-net
+    restart_policy: always
+  notify: Restart Zigbee2mqtt Container
+
 - name: Ensure Calibre-web Docker container is running
   community.docker.docker_container:
     name: cw
@@ -795,6 +829,7 @@
     - overseerr
     - send
     - cd
+    - mqtt
     - babybuddy
     - tautulli
     - bookstack
@@ -823,6 +858,7 @@
     - overseerr
     - send
     - cd
+    - mqtt
     - babybuddy
     - tautulli
     - bookstack
