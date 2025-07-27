@@ -40,10 +40,17 @@
       - nginx
       - fail2ban
       - wireguard
-      - docker.io
     state: present
   when: ansible_os_family == "Debian"
   become: true
+
+- name: Install/upgrade Docker
+  ansible.builtin.apt:
+    name: docker.io
+    state: latest
+    update_cache: true
+  notify: Restart Docker
+  become: true  
 
 - name: Ensure existence of directory  /etc/letsencrypt/live/{{ DNS_DOMAIN }}
   ansible.builtin.file:
@@ -152,6 +159,23 @@
     name: docker
     state: started
     enabled: true
+  become: true
+
+- name: Make APT stop/start Docker around docker.io upgrades
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/99docker-restart
+    mode: "0644"
+    owner: root
+    group: root
+    content: |
+      // stop Docker before unpacking/configuring docker.io
+      DPkg::Pre-Invoke {
+        "if [ \"$DPKG_MAINTSCRIPT_PACKAGE\" = \"docker.io\" ]; then systemctl stop docker; fi";
+      };
+      // start Docker after finishing up
+      DPkg::Post-Invoke {
+        "if [ \"$DPKG_MAINTSCRIPT_PACKAGE\" = \"docker.io\" ]; then systemctl start docker; fi";
+      };
   become: true
 
 - name: Set docker socket permissions
