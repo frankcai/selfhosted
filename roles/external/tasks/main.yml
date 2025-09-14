@@ -231,78 +231,6 @@
     restart_policy: always
   notify: Restart Vaultwarden Container
 
-- name: Create Immich network
-  community.docker.docker_network:
-    name: immich-net
-    driver: bridge
-
-- name: Ensure Immich Redis container is running
-  community.docker.docker_container:
-    name: immich-redis
-    hostname: immich-redis
-    image: docker.io/valkey/valkey:8-bookworm@sha256:ff21bc0f8194dc9c105b769aeabf9585fea6a8ed649c0781caeac5cb3c247884
-    healthcheck:
-      test: redis-cli ping || exit 1      
-    restart_policy: always
-    networks:
-      - name: immich-net
-  notify: Restart Immich Redis Container
-
-- name: Ensure Immich Postgres container is running
-  community.docker.docker_container:
-    name: immich-postgres
-    hostname: immich-postgres
-    image: ghcr.io/immich-app/postgres:14-vectorchord0.3.0-pgvectors0.2.0@sha256:fa4f6e0971f454cd95fec5a9aaed2ed93d8f46725cc6bc61e0698e97dba96da1
-    env:
-      POSTGRES_PASSWORD: "{{ IMMICH_DB_PASSWORD }}"
-      POSTGRES_USER: "{{ IMMICH_DB_USERNAME }}"
-      POSTGRES_DB: "{{ IMMICH_DB_DATABASE_NAME }}"
-      POSTGRES_INITDB_ARGS: "--data-checksums"
-      DB_DATA_LOCATION: "/var/lib/postgresql/data"
-    volumes:
-      - "{{ CFG_MOUNT }}/immich-postgres-cfg/:/var/lib/postgresql/data"
-    networks:
-      - name: immich-net      
-    restart_policy: always
-  notify: Restart Immich Postgres Container
-
-- name: Ensure Immich ML container is running
-  community.docker.docker_container:
-    name: immich-ml
-    image: ghcr.io/immich-app/immich-machine-learning:release
-    env:
-      TZ: "{{ TIME_ZONE }}"
-    volumes:
-      - "{{ CFG_MOUNT }}/immich-ml-cfg/:/cache"
-    networks:
-      - name: immich-net
-    restart_policy: always
-  notify: Restart Immich ML Container    
-
-- name: Ensure Immich container is running
-  community.docker.docker_container:
-    name: immich
-    image: ghcr.io/immich-app/immich-server:release
-    user: "{{ UID | string }}:{{ GID | string }}"
-    env:
-      TZ: "{{ TIME_ZONE }}"
-      UPLOAD_LOCATION: "/usr/src/app/upload"
-      REDIS_HOSTNAME: "{{ IMMICH_REDIS_HOSTNAME }}"
-      DB_HOSTNAME: "{{ IMMICH_DB_HOSTNAME }}"
-      DB_USERNAME: "{{ IMMICH_DB_USERNAME }}"
-      DB_PASSWORD: "{{ IMMICH_DB_PASSWORD }}"
-      DB_DATABASE_NAME: "{{ IMMICH_DB_DATABASE_NAME }}"
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
-      - "{{ CFG_MOUNT }}/immich-cfg/:/usr/src/app/upload"
-    ports:
-      - "9665:2283"
-    networks:
-      - name: immich-net
-      - name: bridge
-    restart_policy: always
-  notify: Restart Immich Container
-
 - name: Ensure Watchtower Docker container is running
   community.docker.docker_container:
     name: watchtower
@@ -453,7 +381,6 @@
     - drive
     - file
     - amp
-    - immich
     - ntfy
   become: true
   notify: Restart Nginx
@@ -471,7 +398,6 @@
     - drive
     - file
     - amp
-    - immich
     - ntfy
   become: true
   notify: Restart Nginx

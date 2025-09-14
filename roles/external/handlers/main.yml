@@ -38,31 +38,7 @@
     name: jellyfin
     state: started
     restart: true
-  become: true
-- name: Restart Immich Redis Container
-  community.docker.docker_container:
-    name: immich-redis
-    state: started
-    restart: true
-  become: true
-- name: Restart Immich Postgres Container
-  community.docker.docker_container:
-    name: immich-postgres
-    state: started
-    restart: true
-  become: true
-- name: Restart Immich ML Container  
-  community.docker.docker_container:
-    name: immich-ml
-    state: started
-    restart: true
-  become: true
-- name: Restart Immich Container
-  community.docker.docker_container:
-    name: immich
-    state: started
-    restart: true
-  become: true        
+  become: true 
 - name: Restart Watchtower Container
   community.docker.docker_container:
     name: watchtower
