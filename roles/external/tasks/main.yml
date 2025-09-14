@@ -176,34 +176,6 @@
     restart_policy: always
   notify: Restart Uptime Kuma Container
 
-- name: Ensure Plex Docker container is running
-  community.docker.docker_container:
-    name: plex
-    image: plexinc/pms-docker:latest
-    env:
-      PLEX_UID: "{{ UID | string }}"
-      PLEX_GID: "{{ GID | string }}"
-      TZ: "{{ TIME_ZONE }}"
-      ALLOWED_NETWORKS: "{{ INTERNAL_NETWORK }}"
-    volumes:
-      - "{{ PLEX_MOUNT_1 }}"
-      - "{{ PLEX_MOUNT_2 }}"
-      - "{{ PLEX_MOUNT_3 }}"
-      - "{{ PLEX_MOUNT_4 }}"
-      - "{{ CFG_MOUNT }}/plex-cfg:/config"
-    ports:
-      - "32400:32400"
-      - "32400:32400/udp"
-      - "3005:3005"
-      - "8324:8324"
-      - "32469:32469"
-      - "32410:32410/udp"
-      - "32412:32412/udp"
-      - "32413:32413/udp"
-      - "32414:32414/udp"
-    restart_policy: always
-  notify: Restart Plex Container
-
 - name: Ensure Jellyfin Docker container is running
   community.docker.docker_container:
     name: jellyfin
@@ -286,7 +258,7 @@
       POSTGRES_USER: "{{ IMMICH_DB_USERNAME }}"
       POSTGRES_DB: "{{ IMMICH_DB_DATABASE_NAME }}"
       POSTGRES_INITDB_ARGS: "--data-checksums"
-      DB_DATA_LOCATION: "./postgres"
+      DB_DATA_LOCATION: "/var/lib/postgresql/data"
     volumes:
       - "{{ CFG_MOUNT }}/immich-postgres-cfg/:/var/lib/postgresql/data"
     networks:
@@ -314,7 +286,7 @@
     user: "{{ UID | string }}:{{ GID | string }}"
     env:
       TZ: "{{ TIME_ZONE }}"
-      UPLOAD_LOCATION: "./library"
+      UPLOAD_LOCATION: "/usr/src/app/upload"
       REDIS_HOSTNAME: "{{ IMMICH_REDIS_HOSTNAME }}"
       DB_HOSTNAME: "{{ IMMICH_DB_HOSTNAME }}"
       DB_USERNAME: "{{ IMMICH_DB_USERNAME }}"
@@ -476,7 +448,6 @@
   loop:
     - uplocal
     - vaultwarden
-    - plex
     - jellyfin
     - chat
     - drive
@@ -495,7 +466,6 @@
   loop:
     - uplocal
     - vaultwarden
-    - plex
     - jellyfin
     - chat
     - drive

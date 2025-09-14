@@ -33,12 +33,6 @@
     state: started
     restart: true
   become: true
-- name: Restart Plex Container
-  community.docker.docker_container:
-    name: plex
-    state: started
-    restart: true
-  become: true
 - name: Restart Jellyfin Container
   community.docker.docker_container:
     name: jellyfin
