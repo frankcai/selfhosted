@@ -382,6 +382,7 @@
     - file
     - amp
     - ntfy
+    - audio
   become: true
   notify: Restart Nginx
 
@@ -399,6 +400,7 @@
     - file
     - amp
     - ntfy
+    - audio
   become: true
   notify: Restart Nginx
 
