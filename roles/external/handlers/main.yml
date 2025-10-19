@@ -39,6 +39,12 @@
     state: started
     restart: true
   become: true 
+- name: Restart Navidrome Container
+  community.docker.docker_container:
+    name: navidrome
+    state: started
+    restart: true
+  become: true   
 - name: Restart Watchtower Container
   community.docker.docker_container:
     name: watchtower
