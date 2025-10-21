@@ -1,0 +1,15 @@
+---
+- name: Ensure ntfy is running
+  community.docker.docker_container:
+    name: ntfy
+    image: binwiederhier/ntfy:latest
+    command: ["serve"]
+    env:
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/ntfy-cfg/:/etc/ntfy"
+      - "{{ CFG_MOUNT }}/ntfy-db/:/var/lib/ntfy"
+    ports:
+      - "9091:80"
+    restart_policy: always
+  notify: Restart Ntfy Container

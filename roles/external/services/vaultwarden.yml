@@ -1,0 +1,17 @@
+---
+- name: Ensure Vaultwarden is running
+  community.docker.docker_container:
+    name: vaultwarden
+    image: vaultwarden/server:latest
+    user: "{{ UID | string }}:{{ GID | string }}"
+    env:
+      TZ: "{{ TIME_ZONE }}"
+      WEBSOCKET_ENABLED: "true"
+      SHOW_PASSWORD_HINT: "false"
+      SIGNUPS_ALLOWED: "false"
+    volumes:
+      - "{{ CFG_MOUNT }}/vaultwarden-cfg/:/data/"
+    ports:
+      - "8080:80"
+    restart_policy: always
+  notify: Restart Vaultwarden Container

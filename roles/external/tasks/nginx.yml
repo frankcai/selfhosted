@@ -1,0 +1,51 @@
+---
+- name: Ensure /etc/nginx/ssl exists
+  ansible.builtin.file:
+    path: /etc/nginx/ssl
+    state: directory
+    mode: "0700"
+  become: true    
+
+- name: Generate DH params
+  ansible.builtin.command:
+    cmd: openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
+    creates: /etc/nginx/ssl/dhparam.pem
+  become: true    
+
+- name: Render nginx.conf
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+  notify: Restart Nginx
+  become: true  
+
+- name: Place site configs
+  ansible.builtin.template:
+    src: "templates/{{ item }}.conf.j2"
+    dest: "/etc/nginx/sites-available/{{ item }}.conf"
+  loop: "{{ external_nginx_sites_enabled }}"
+  notify: Restart Nginx
+  become: true  
+
+- name: Symlink sites-enabled
+  ansible.builtin.file:
+    src: "/etc/nginx/sites-available/{{ item }}.conf"
+    dest: "/etc/nginx/sites-enabled/{{ item }}.conf"
+    state: link
+  loop: "{{ external_nginx_sites_enabled }}"
+  notify: Restart Nginx
+  become: true  
+
+- name: Ensure default site is absent
+  ansible.builtin.file:
+    path: "/etc/nginx/sites-enabled/default"
+    state: absent
+  notify: Restart Nginx
+  become: true  
+
+- name: Ensure Nginx running
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true
+  become: true    

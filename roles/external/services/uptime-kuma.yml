@@ -1,0 +1,15 @@
+---
+- name: Ensure Uptime Kuma is running
+  community.docker.docker_container:
+    name: uplocal
+    image: louislam/uptime-kuma:1
+    volumes:
+      - "{{ CFG_MOUNT }}/uplocal-cfg/:/app/data/"
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "3001:3001"
+    dns_servers:
+      - "{{ DNS_HOST }}"
+      - "{{ DNS_HOST_IPV6 }}"
+    restart_policy: always
+  notify: Restart Uptime Kuma Container

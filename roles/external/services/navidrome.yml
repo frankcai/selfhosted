@@ -1,0 +1,18 @@
+---
+- name: Ensure Navidrome is running
+  community.docker.docker_container:
+    name: navidrome
+    image: deluan/navidrome:latest
+    user: "{{ UID | string }}:{{ GID | string }}"
+    env:
+      ND_LOGLEVEL: "info"
+      ND_PUID: "{{ UID | string }}"
+      ND_PGID: "{{ GID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ NAVIDROME_MOUNT }}"
+      - "{{ CFG_MOUNT }}/navidrome-cfg:/data"
+    ports:
+      - "4533:4533"
+    restart_policy: always
+  notify: Restart Navidrome Container

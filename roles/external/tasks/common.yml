@@ -1,0 +1,37 @@
+---
+- name: Install required packages (Debian)
+  ansible.builtin.apt:
+    name:
+      - nfs-common
+      - docker.io
+      - docker-compose
+      - nginx
+      - ufw
+      - certbot
+      - python3-certbot-nginx
+      - python3-certbot-dns-cloudflare
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+  become: true
+
+- name: Set DNS server for systemd-resolved
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/resolved.conf
+    regexp: "^#?DNS="
+    line: "DNS={{ DNS_HOST }}"
+    state: present
+  become: true    
+
+- name: Link resolv.conf to systemd-resolved
+  ansible.builtin.file:
+    src: /run/systemd/resolve/resolv.conf
+    dest: /etc/resolv.conf
+    state: link
+  become: true
+
+- name: Restart systemd-resolved
+  ansible.builtin.systemd:
+    name: systemd-resolved
+    state: restarted
+  become: true

@@ -1,0 +1,81 @@
+---
+- name: Cloudflare credentials
+  ansible.builtin.copy:
+    dest: "/etc/letsencrypt/cloudflare.ini"
+    content: |
+      dns_cloudflare_api_token = {{ CLOUDFLARE_API_TOKEN }}
+    mode: "0600"
+  become: true
+  when: ansible_os_family == "Debian"
+
+- name: Obtain/renew wildcard certs
+  ansible.builtin.command:
+    cmd: >
+      certbot certonly --agree-tos --non-interactive --email {{ LETSENCRYPT_EMAIL }}
+      --dns-cloudflare --dns-cloudflare-credentials /etc/letsencrypt/cloudflare.ini
+      -d {{ DNS_DOMAIN }} -d *.{{ DNS_DOMAIN }} --keep-until-expiring
+  become: true      
+  when: ansible_os_family == "Debian"
+  register: certbot_output
+  changed_when: "'Congratulations' in certbot_output.stdout"
+
+- name: Stat remote cert
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/{{ DNS_DOMAIN }}/fullchain.pem
+  register: cert_stat
+  become: true  
+
+- name: Stat local cert (controller)
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/{{ DNS_DOMAIN }}/fullchain.pem
+  register: local_cert_stat
+  delegate_to: localhost
+  become: true
+  ignore_errors: true
+
+- name: Pull newer certs to controller
+  when: (not local_cert_stat.stat.exists) or (cert_stat.stat.exists and cert_stat.stat.mtime > local_cert_stat.stat.mtime)
+  block:
+    - name: Ensure dest dir
+      ansible.builtin.file:
+        path: /etc/letsencrypt/live/{{ DNS_DOMAIN }}
+        state: directory
+        mode: "0755"
+        owner: "root"
+        group: "root"
+      delegate_to: localhost
+      become: true
+
+    - name: Synchronize SSL certs
+      ansible.posix.synchronize:
+        src: /etc/letsencrypt/live/{{ DNS_DOMAIN }}/
+        dest: /etc/letsencrypt/live/{{ DNS_DOMAIN }}/
+        mode: pull
+        rsync_opts: ["--copy-links"]
+      become: true        
+      notify: Restart Nginx
+
+- name: Prune old cert versions
+  ansible.builtin.shell: |
+    set -o pipefail
+    files_to_remove=$(
+      for type in cert chain fullchain privkey; do
+        ls -1t /etc/letsencrypt/archive/{{ DNS_DOMAIN }}/${type}*.pem | tail -n +4
+      done
+    )
+    if [ -n "$files_to_remove" ]; then
+      echo "$files_to_remove" | xargs -r rm -f
+    fi
+  args: { executable: /bin/bash }
+  register: prune_old_certs
+  changed_when: prune_old_certs.stdout != ""
+  when: ansible_os_family == "Debian"
+  become: true  
+
+- name: Cron - cert renewal
+  ansible.builtin.cron:
+    name: "Certbot Renewal"
+    hour: "2"
+    minute: "30"
+    job: "certbot renew --quiet --post-hook 'systemctl reload nginx'"
+  become: true

@@ -1,0 +1,26 @@
+---
+external_enable_common: true
+external_enable_networking: true
+external_enable_nfs: true
+external_enable_docker: true
+external_enable_ufw: true
+external_enable_certbot: true
+external_enable_nginx: true
+external_enable_services: true
+
+# toggle individual docker services
+external_enabled_services:
+  - uptime-kuma
+  - jellyfin
+  - navidrome
+  - ntfy
+  - vaultwarden
+  - watchtower
+
+# sites to render & enable
+external_nginx_sites_enabled:
+  - uplocal
+  - vaultwarden
+  - jellyfin
+  - ntfy
+  - navidrome
