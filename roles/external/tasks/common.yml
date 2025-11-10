@@ -1,4 +1,26 @@
 ---
+
+- name: Repair dpkg if in bad state
+  ansible.builtin.shell: |
+    set -e
+    dpkg --audit >/dev/null 2>&1 || true
+    dpkg --configure -a
+    apt-get -y -f install
+  args:
+    executable: /bin/bash
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  become: true
+  changed_when: false
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 3600
+    lock_timeout: 600
+  when: ansible_os_family == "Debian"
+  become: true
+
 - name: Install required packages (Debian)
   ansible.builtin.apt:
     name:
