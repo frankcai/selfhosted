@@ -5,18 +5,18 @@
     groups: docker
     append: true
   when: ansible_os_family == "Debian"
-  become: true  
+  become: true
 
 - name: Ensure Docker service is running
   ansible.builtin.service:
     name: docker
     state: started
     enabled: true
-  become: true    
+  become: true
 
 - name: Set docker socket permissions
   ansible.builtin.file:
     path: /var/run/docker.sock
     group: docker
     mode: "0660"
-  become: true    
+  become: true

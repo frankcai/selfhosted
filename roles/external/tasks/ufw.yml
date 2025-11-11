@@ -1,5 +1,25 @@
 ---
-- { name: Allow SSH,   community.general.ufw: { rule: allow, name: OpenSSH }, become: true }
-- { name: Allow HTTP,  community.general.ufw: { rule: allow, port: "80",  proto: tcp }, become: true }
-- { name: Allow HTTPS, community.general.ufw: { rule: allow, port: "443", proto: tcp }, become: true }
-- { name: Enable UFW,  community.general.ufw: { state: enabled }, become: true }
+- name: Allow SSH
+  community.general.ufw:
+    rule: allow
+    name: OpenSSH
+  become: true
+
+- name: Allow HTTP
+  community.general.ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+  become: true
+
+- name: Allow HTTPS
+  community.general.ufw:
+    rule: allow
+    port: "443"
+    proto: tcp
+  become: true
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled
+  become: true

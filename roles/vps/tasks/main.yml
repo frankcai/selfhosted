@@ -44,7 +44,7 @@
 
 - name: Update apt cache
   ansible.builtin.apt:
-    update_cache: yes
+    update_cache: true
     cache_valid_time: 3600
     lock_timeout: 600
   when: ansible_os_family == "Debian"
@@ -63,10 +63,10 @@
 - name: Install/upgrade Docker
   ansible.builtin.apt:
     name: docker.io
-    state: latest
+    state: present
     update_cache: true
   notify: Restart Docker
-  become: true  
+  become: true
 
 - name: Ensure existence of directory  /etc/letsencrypt/live/{{ DNS_DOMAIN }}
   ansible.builtin.file:
@@ -135,6 +135,9 @@
   ansible.builtin.template:
     src: nginx.conf.j2
     dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: "0644"
   become: true
   notify: Restart Nginx
 
@@ -142,6 +145,9 @@
   ansible.builtin.template:
     src: wireguard.conf.j2
     dest: /etc/wireguard/wg0.conf
+    owner: root
+    group: root
+    mode: "0600"
   notify:
     - Restart WireGuard
   become: true
@@ -214,6 +220,9 @@
   ansible.builtin.template:
     src: "{{ item }}.conf.j2"
     dest: "/etc/nginx/sites-available/{{ item }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
   loop:
     - redirect
     - upremote

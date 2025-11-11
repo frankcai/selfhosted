@@ -9,13 +9,13 @@
     name: mosquitto
     state: started
     restart: true
-  become: true    
-- name: Restart Zigbee2mqtt Container  
+  become: true
+- name: Restart Zigbee2mqtt Container
   community.docker.docker_container:
     name: mqtt
     state: started
     restart: true
-  become: true  
+  become: true
 - name: Restart Calibre-web Container
   community.docker.docker_container:
     name: cw
