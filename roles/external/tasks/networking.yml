@@ -2,17 +2,17 @@
 - name: Check if WG route exists
   ansible.builtin.command: >
     ip route show {{ WG_NETWORK }} via {{ VPN_HOST }} dev ens18 proto static
-  register: route_check
+  register: external_route_check
   ignore_errors: true
   changed_when: false
   failed_when: false
-  become: true  
+  become: true
 
 - name: Add WG route if not present
   ansible.builtin.command: >
     ip route add {{ WG_NETWORK }} via {{ VPN_HOST }} dev ens18 proto static onlink
-  when: route_check.rc != 0
-  changed_when: route_check.rc != 0
+  when: external_route_check.rc != 0
+  changed_when: external_route_check.rc != 0
 
 - name: Ensure netplan config dir exists (Debian)
   ansible.builtin.file:
@@ -22,7 +22,7 @@
     group: root
     mode: "0755"
   when: ansible_os_family == "Debian"
-  become: true  
+  become: true
 
 - name: Add persistent route in netplan
   ansible.builtin.copy:
@@ -39,4 +39,4 @@
     mode: "0644"
   when: ansible_os_family == "Debian"
   notify: Apply netplan configuration
-  become: true  
+  become: true

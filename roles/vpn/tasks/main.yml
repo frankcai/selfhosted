@@ -44,6 +44,9 @@
   ansible.builtin.template:
     src: wireguard.conf.j2
     dest: /etc/wireguard/wg0.conf
+    owner: root
+    group: root
+    mode: "0600"
   notify:
     - Restart WireGuard
   become: true

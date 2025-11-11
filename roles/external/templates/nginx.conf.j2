@@ -34,13 +34,13 @@ http {
         ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3; # Dropping SSLv3, ref: POODLE
         ssl_prefer_server_ciphers on;
 		ssl_dhparam /etc/nginx/ssl/dhparam.pem;
-		
+
 		# Add rate limiting
 		limit_req_zone $binary_remote_addr zone=one:10m rate=1r/s;
-		
+
 		# Hide nginx version
 		server_tokens off;
-	
+
         ##
         # Logging Settings
         ##
@@ -74,10 +74,10 @@ http {
             listen 443 ssl default_server;
             listen [::]:443 ssl default_server;
             server_name _;
-        
+
             ssl_certificate /etc/letsencrypt/live/{{ DNS_DOMAIN }}/fullchain.pem;
             ssl_certificate_key /etc/letsencrypt/live/{{ DNS_DOMAIN }}/privkey.pem;
-        
+
             return 404;
         }
 

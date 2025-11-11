@@ -15,7 +15,7 @@
 
 - name: Update apt cache
   ansible.builtin.apt:
-    update_cache: yes
+    update_cache: true
     cache_valid_time: 3600
     lock_timeout: 600
   when: ansible_os_family == "Debian"
@@ -43,7 +43,7 @@
     regexp: "^#?DNS="
     line: "DNS={{ DNS_HOST }}"
     state: present
-  become: true    
+  become: true
 
 - name: Link resolv.conf to systemd-resolved
   ansible.builtin.file:

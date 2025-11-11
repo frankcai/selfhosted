@@ -6,6 +6,7 @@ Welcome to the **selfhosted** automation repository. This file defines guardrail
 - Prioritise maintainability: keep solutions small, focused, and easy to reason about.
 - Apply SOLID principles when adding or refactoring code; favour clear separation of concerns and dependency inversion.
 - When you change behaviour or add new features, provide accompanying automated checks (e.g., Molecule scenarios, Ansible syntax checks, or unit tests for Python utilities) whenever feasible.
+- Before committing changes run the same automation the CI uses: `ansible-lint`, `ansible-playbook --syntax-check site.yml`, and `python -m pytest`. Remember to create a temporary `vault_pass.txt` (ignored by git) so the commands succeed locally.
 - Never commit real secrets or environment-specific credentials. Use sample/default files and document overrides instead.
 - Follow existing naming patterns for files, variables, and Ansible roles. If you must diverge, explain why in code comments or commit messages.
 

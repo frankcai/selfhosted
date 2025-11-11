@@ -35,7 +35,7 @@
 
 - name: Update apt cache
   ansible.builtin.apt:
-    update_cache: yes
+    update_cache: true
     cache_valid_time: 3600
     lock_timeout: 600
   when: ansible_os_family == "Debian"
@@ -59,7 +59,7 @@
   ansible.builtin.command: >
     ip route show {{ WG_NETWORK }}
     via {{ VPN_HOST }} dev ens18 proto static
-  register: route_check
+  register: internal_route_check
   ignore_errors: true
   changed_when: false
   failed_when: false
@@ -69,37 +69,38 @@
   ansible.builtin.command: >
     ip route add {{ WG_NETWORK }}
     via {{ VPN_HOST }} dev ens18 proto static onlink
-  when: route_check.rc != 0
-  changed_when: route_check.rc != 0
+  when: internal_route_check.rc != 0
+  changed_when: internal_route_check.rc != 0
   become: true
 
 - name: Check if daemon.json exists
   ansible.builtin.stat:
     path: /etc/docker/daemon.json
-  register: daemon_json_stat
+  register: internal_daemon_json_stat
   become: true
 
 - name: Generate expected daemon.json content
   ansible.builtin.set_fact:
-    expected_daemon_json: |
+    internal_expected_daemon_json: |
       {
         "hosts": ["unix:///var/run/docker.sock", "tcp://{{ INTERNAL_HOST_DOCKER }}"],
         "dns": ["{{ DNS_HOST }}"]
       }
 
 - name: Calculate expected daemon.json checksum
-  ansible.builtin.command: echo '{{ expected_daemon_json }}' | md5sum
-  register: expected_daemon_json_md5
+  ansible.builtin.command: echo '{{ internal_expected_daemon_json }}' | md5sum
+  register: internal_expected_daemon_json_md5
+  changed_when: false
   become: false
 
 - name: Create or update the daemon.json file with TCP settings
   ansible.builtin.copy:
-    content: "{{ expected_daemon_json }}"
+    content: "{{ internal_expected_daemon_json }}"
     dest: /etc/docker/daemon.json
     owner: root
     group: root
     mode: "0644"
-  when: not daemon_json_stat.stat.exists or daemon_json_stat.stat.checksum != expected_daemon_json_md5.stdout.split()[0]
+  when: not internal_daemon_json_stat.stat.exists or internal_daemon_json_stat.stat.checksum != internal_expected_daemon_json_md5.stdout.split()[0]
   become: true
   notify: Restart Docker
 
@@ -130,15 +131,15 @@
 - name: Check if NFS directories exist
   ansible.builtin.stat:
     path: "{{ item.dest }}"
-  register: dir_status
+  register: internal_dir_status
   loop: "{{ NFS_MOUNTS }}"
 
 - name: Create required NFS directories if they don't exist
   ansible.builtin.file:
-    path: "{{ item.item }}"
+    path: "{{ item.item.dest }}"
     state: directory
     mode: "0755"
-  loop: "{{ dir_status.results }}"
+  loop: "{{ internal_dir_status.results }}"
   when: not item.stat.exists
   become: true
 
@@ -162,7 +163,7 @@
         state: mounted
       become: true
       loop: "{{ NFS_MOUNTS }}"
-      register: mount_results
+      register: internal_mount_results
 
   rescue:
     - name: DNS lookup failed – restart systemd-resolved
@@ -180,8 +181,8 @@
         state: mounted
       become: true
       loop: "{{ NFS_MOUNTS }}"
-      register: mount_retry
-      failed_when: mount_retry.failed
+      register: internal_mount_retry
+      failed_when: internal_mount_retry.failed
 
 - name: Start and Enable Fail2ban
   ansible.builtin.service:
@@ -282,8 +283,8 @@
 
 - name: Wait for Paperless-DB to be healthy
   ansible.builtin.command: "docker inspect --format='{%raw%}{{.State.Health.Status}}{%endraw%}' paperless-db"
-  register: result
-  until: result.stdout == "healthy"
+  register: internal_paperless_db_health
+  until: internal_paperless_db_health.stdout == "healthy"
   retries: 30
   delay: 10
   changed_when: false
@@ -353,8 +354,8 @@
 
 - name: Wait for Home-Assistant-DB to be healthy
   ansible.builtin.command: "docker inspect --format='{%raw%}{{.State.Health.Status}}{%endraw%}' home-assistant-db"
-  register: result
-  until: result.stdout == "healthy"
+  register: internal_home_assistant_db_health
+  until: internal_home_assistant_db_health.stdout == "healthy"
   retries: 30
   delay: 10
   changed_when: false
@@ -828,6 +829,9 @@
   ansible.builtin.template:
     src: nginx.conf.j2
     dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: "0644"
   become: true
   notify: Restart Nginx
 
@@ -835,6 +839,9 @@
   ansible.builtin.template:
     src: "{{ item }}.conf.j2"
     dest: "/etc/nginx/sites-available/{{ item }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
   loop:
     - dsm
     - cw
