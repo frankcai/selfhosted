@@ -1,40 +1,40 @@
 ---
 - name: external | common
-  include_tasks: common.yml
+  ansible.builtin.include_tasks: common.yml
   when: external_enable_common
   tags: [external, external_common]
 
 - name: external | networking
-  include_tasks: networking.yml
+  ansible.builtin.include_tasks: networking.yml
   when: external_enable_networking
   tags: [external, external_networking]
 
 - name: external | nfs
-  include_tasks: nfs.yml
+  ansible.builtin.include_tasks: nfs.yml
   when: external_enable_nfs
   tags: [external, external_nfs]
 
 - name: external | docker
-  include_tasks: docker.yml
+  ansible.builtin.include_tasks: docker.yml
   when: external_enable_docker
   tags: [external, external_docker]
 
 - name: external | ufw
-  include_tasks: ufw.yml
+  ansible.builtin.include_tasks: ufw.yml
   when: external_enable_ufw
   tags: [external, external_ufw]
 
 - name: external | certbot
-  include_tasks: certbot.yml
+  ansible.builtin.include_tasks: certbot.yml
   when: external_enable_certbot
   tags: [external, external_certbot]
 
 - name: external | nginx
-  include_tasks: nginx.yml
+  ansible.builtin.include_tasks: nginx.yml
   when: external_enable_nginx
   tags: [external, external_nginx]
 
 - name: external | services
-  include_tasks: services.yml
+  ansible.builtin.include_tasks: services.yml
   when: external_enable_services
   tags: [external, external_services]

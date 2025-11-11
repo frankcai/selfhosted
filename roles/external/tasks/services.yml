@@ -1,18 +1,24 @@
 ---
-- include_tasks: services/uptime-kuma.yml
+- name: external | services | include uptime-kuma
+  ansible.builtin.include_tasks: services/uptime-kuma.yml
   when: "'uptime-kuma' in external_enabled_services"
 
-- include_tasks: services/jellyfin.yml
+- name: external | services | include jellyfin
+  ansible.builtin.include_tasks: services/jellyfin.yml
   when: "'jellyfin' in external_enabled_services"
 
-- include_tasks: services/navidrome.yml
+- name: external | services | include navidrome
+  ansible.builtin.include_tasks: services/navidrome.yml
   when: "'navidrome' in external_enabled_services"
 
-- include_tasks: services/ntfy.yml
+- name: external | services | include ntfy
+  ansible.builtin.include_tasks: services/ntfy.yml
   when: "'ntfy' in external_enabled_services"
 
-- include_tasks: services/vaultwarden.yml
+- name: external | services | include vaultwarden
+  ansible.builtin.include_tasks: services/vaultwarden.yml
   when: "'vaultwarden' in external_enabled_services"
 
-- include_tasks: services/watchtower.yml
+- name: external | services | include watchtower
+  ansible.builtin.include_tasks: services/watchtower.yml
   when: "'watchtower' in external_enabled_services"
