@@ -1,0 +1,27 @@
+---
+dependency:
+  name: galaxy
+
+driver:
+  name: default
+  options:
+    managed: false
+
+ansible:
+  playbooks:
+    converge: converge.yml
+    verify: verify.yml
+
+provisioner:
+  name: ansible
+  inventory:
+    hosts:
+      all:
+        hosts:
+          localhost:
+            ansible_connection: local
+
+scenario:
+  test_sequence:
+    - converge
+    - verify
