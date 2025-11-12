@@ -1,0 +1,59 @@
+---
+- name: Verify default variables
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Load default group variables
+      ansible.builtin.include_vars:
+        file: ../../group_vars/all.default.yml
+      register: loaded_group_defaults
+
+    - name: Load default secret variables
+      ansible.builtin.include_vars:
+        file: ../../secrets.default.yml
+      register: loaded_secret_defaults
+
+    - name: Store defaults for assertions
+      ansible.builtin.set_fact:
+        group_defaults: "{{ loaded_group_defaults.ansible_facts }}"
+        secret_defaults: "{{ loaded_secret_defaults.ansible_facts }}"
+
+    - name: Ensure SSH defaults exist
+      ansible.builtin.assert:
+        that:
+          - group_defaults.ansible_ssh_user is string
+          - group_defaults.ansible_ssh_private_key_file is string
+        success_msg: SSH defaults are present
+        fail_msg: Missing SSH defaults in group_vars/all.default.yml
+
+    - name: Ensure host defaults exist
+      ansible.builtin.assert:
+        that:
+          - secret_defaults.DNS_HOST is string
+          - secret_defaults.DNS_DOMAIN is string
+          - secret_defaults.VPN_HOST is string
+          - secret_defaults.VPS_HOST is string
+        success_msg: Core host defaults are present
+        fail_msg: Expected host defaults in secrets.default.yml
+
+    - name: Validate WireGuard peer defaults
+      ansible.builtin.assert:
+        that:
+          - secret_defaults.WG_VPS_PEERS | length > 0
+          - secret_defaults.WG_VPS_PEERS | map(attribute='PUBLIC_KEY') | list | length == secret_defaults.WG_VPS_PEERS | length
+          - secret_defaults.WG_VPS_PEERS | map(attribute='ALLOWED_IPS') | list | length == secret_defaults.WG_VPS_PEERS | length
+          - secret_defaults.WG_VPN_PEERS | length > 0
+          - secret_defaults.WG_VPN_PEERS | map(attribute='PUBLIC_KEY') | list | length == secret_defaults.WG_VPN_PEERS | length
+          - secret_defaults.WG_VPN_PEERS | map(attribute='ALLOWED_IPS') | list | length == secret_defaults.WG_VPN_PEERS | length
+        success_msg: WireGuard peer defaults use expected keys
+        fail_msg: WireGuard peer defaults should define PUBLIC_KEY and ALLOWED_IPS
+
+    - name: Validate NFS mount defaults
+      ansible.builtin.assert:
+        that:
+          - secret_defaults.NFS_MOUNTS | length > 0
+          - secret_defaults.NFS_MOUNTS | map(attribute='source') | list | length == secret_defaults.NFS_MOUNTS | length
+          - secret_defaults.NFS_MOUNTS | map(attribute='dest') | list | length == secret_defaults.NFS_MOUNTS | length
+          - secret_defaults.NFS_MOUNTS | map(attribute='options') | list | length == secret_defaults.NFS_MOUNTS | length
+        success_msg: NFS mount defaults define source, dest, and options keys
+        fail_msg: Each NFS mount should include source, dest, and options keys

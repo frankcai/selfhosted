@@ -1,0 +1,19 @@
+---
+- name: Load default inventories
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Include default group variables
+      ansible.builtin.include_vars:
+        file: ../../group_vars/all.default.yml
+      register: group_defaults
+
+    - name: Include default secrets
+      ansible.builtin.include_vars:
+        file: ../../secrets.default.yml
+      register: secrets_defaults
+
+    - name: Set combined defaults fact
+      ansible.builtin.set_fact:
+        default_group_vars: "{{ group_defaults.ansible_facts }}"
+        default_secret_vars: "{{ secrets_defaults.ansible_facts }}"
