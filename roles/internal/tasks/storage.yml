@@ -1,10 +1,17 @@
 ---
-- name: Ensure NFS target directories exist
-  ansible.builtin.file:
+- name: Check NFS target directory status
+  ansible.builtin.stat:
     path: "{{ item.dest }}"
+  loop: "{{ NFS_MOUNTS }}"
+  register: internal_nfs_dir_status
+
+- name: Ensure missing NFS target directories exist
+  ansible.builtin.file:
+    path: "{{ item.item.dest }}"
     state: directory
     mode: "0755"
-  loop: "{{ NFS_MOUNTS }}"
+  loop: "{{ internal_nfs_dir_status.results }}"
+  when: not item.stat.exists
   become: true
 
 - name: Add NFS mounts to /etc/fstab
