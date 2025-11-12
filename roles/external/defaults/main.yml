@@ -16,6 +16,7 @@ external_enabled_services:
   - ntfy
   - vaultwarden
   - watchtower
+  - authentik
 
 # sites to render & enable
 external_nginx_sites_enabled:
@@ -24,3 +25,4 @@ external_nginx_sites_enabled:
   - jellyfin
   - ntfy
   - navidrome
+  - authentik
