@@ -1,0 +1,32 @@
+---
+- name: Ensure Fail2ban is started and enabled
+  ansible.builtin.service:
+    name: fail2ban
+    state: started
+    enabled: true
+  become: true
+
+- name: Allow SSH access through UFW
+  community.general.ufw:
+    rule: allow
+    name: OpenSSH
+  become: true
+
+- name: Allow traffic on port 80 for Nginx
+  community.general.ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+  become: true
+
+- name: Allow traffic on port 443 for Nginx
+  community.general.ufw:
+    rule: allow
+    port: "443"
+    proto: tcp
+  become: true
+
+- name: Enable ufw
+  community.general.ufw:
+    state: enabled
+  become: true

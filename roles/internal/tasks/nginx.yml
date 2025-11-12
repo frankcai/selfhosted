@@ -1,0 +1,106 @@
+---
+- name: Ensure existence of directory /etc/letsencrypt/live/{{ DNS_DOMAIN }}
+  ansible.builtin.file:
+    path: "/etc/letsencrypt/live/{{ DNS_DOMAIN }}"
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+  become: true
+
+- name: Ensure existence of directory /etc/letsencrypt/archive/{{ DNS_DOMAIN }}
+  ansible.builtin.file:
+    path: "/etc/letsencrypt/archive/{{ DNS_DOMAIN }}"
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+  become: true
+
+- name: Copy cert files to target
+  ansible.builtin.copy:
+    src: "/etc/letsencrypt/live/{{ DNS_DOMAIN }}/{{ item.src }}"
+    dest: "/etc/letsencrypt/archive/{{ DNS_DOMAIN }}/{{ item.dest }}"
+    mode: "{{ item.mode }}"
+    owner: root
+    group: root
+  loop:
+    - { src: "cert.pem", dest: "cert.pem", mode: "0644" }
+    - { src: "chain.pem", dest: "chain.pem", mode: "0644" }
+    - { src: "fullchain.pem", dest: "fullchain.pem", mode: "0644" }
+    - { src: "privkey.pem", dest: "privkey.pem", mode: "0600" }
+  become: true
+  notify: Restart Nginx
+
+- name: Ensure symlinks are set for /etc/letsencrypt/live/{{ DNS_DOMAIN }}
+  ansible.builtin.file:
+    src: "/etc/letsencrypt/archive/{{ DNS_DOMAIN }}/{{ item.src }}"
+    dest: "/etc/letsencrypt/live/{{ DNS_DOMAIN }}/{{ item.dest }}"
+    state: link
+    owner: root
+    group: root
+  loop:
+    - { src: "cert.pem", dest: "cert.pem" }
+    - { src: "chain.pem", dest: "chain.pem" }
+    - { src: "fullchain.pem", dest: "fullchain.pem" }
+    - { src: "privkey.pem", dest: "privkey.pem" }
+  become: true
+
+- name: Ensure /etc/nginx/ssl directory exists
+  ansible.builtin.file:
+    path: /etc/nginx/ssl
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  become: true
+
+- name: Generate strong DH parameters
+  ansible.builtin.command:
+    cmd: openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
+    creates: /etc/nginx/ssl/dhparam.pem
+  become: true
+
+- name: Update Nginx configuration using template
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: Restart Nginx
+
+- name: Place Nginx config for services
+  ansible.builtin.template:
+    src: "{{ item }}.conf.j2"
+    dest: "/etc/nginx/sites-available/{{ item }}.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ internal_nginx_sites }}"
+  become: true
+  notify: Restart Nginx
+
+- name: Symlink Nginx config to sites-enabled for services
+  ansible.builtin.file:
+    src: "/etc/nginx/sites-available/{{ item }}.conf"
+    dest: "/etc/nginx/sites-enabled/{{ item }}.conf"
+    state: link
+  loop: "{{ internal_nginx_sites }}"
+  become: true
+  notify: Restart Nginx
+
+- name: Ensure default site is not enabled
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  become: true
+  notify: Restart Nginx
+
+- name: Ensure Nginx is running and enabled at boot
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true
+  become: true

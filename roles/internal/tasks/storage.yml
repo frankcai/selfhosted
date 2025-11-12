@@ -1,0 +1,56 @@
+---
+- name: Check NFS target directory status
+  ansible.builtin.stat:
+    path: "{{ item.dest }}"
+  loop: "{{ NFS_MOUNTS }}"
+  register: internal_nfs_dir_status
+
+- name: Ensure missing NFS target directories exist
+  ansible.builtin.file:
+    path: "{{ item.item.dest }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ internal_nfs_dir_status.results }}"
+  when: not item.stat.exists
+  become: true
+
+- name: Add NFS mounts to /etc/fstab
+  ansible.builtin.blockinfile:
+    path: /etc/fstab
+    block: |
+      {% for MOUNT in NFS_MOUNTS %}
+      {{ NFS_SERVER }}:{{ MOUNT.source }} {{ MOUNT.dest }} nfs {{ MOUNT.options }} 0 0
+      {% endfor %}
+  become: true
+
+- name: Ensure NFS shares are mounted (and retry on DNS hiccup)
+  block:
+    - name: "Mount NFS share {{ item.source ~ ' → ' ~ item.dest }}"
+      ansible.posix.mount:
+        path: "{{ item.dest }}"
+        src: "{{ NFS_SERVER }}:{{ item.source }}"
+        fstype: nfs
+        opts: "{{ item.options | default('defaults') }}"
+        state: mounted
+      become: true
+      loop: "{{ NFS_MOUNTS }}"
+      register: internal_mount_results
+
+  rescue:
+    - name: DNS lookup failed – restart systemd-resolved
+      ansible.builtin.systemd:
+        name: systemd-resolved.service
+        state: restarted
+      become: true
+
+    - name: Retry mounting NFS shares after DNS restart
+      ansible.posix.mount:
+        path: "{{ item.dest }}"
+        src: "{{ NFS_SERVER }}:{{ item.source }}"
+        fstype: nfs
+        opts: "{{ item.options | default('defaults') }}"
+        state: mounted
+      become: true
+      loop: "{{ NFS_MOUNTS }}"
+      register: internal_mount_retry
+      failed_when: internal_mount_retry.failed

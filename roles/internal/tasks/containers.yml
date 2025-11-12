@@ -1,0 +1,40 @@
+---
+- name: Ensure application containers are running
+  community.docker.docker_container:
+    name: "{{ item.name }}"
+    image: "{{ item.image }}"
+    command: "{{ item.command | default(omit) }}"
+    hostname: "{{ item.hostname | default(omit) }}"
+    env: "{{ item.env | default(omit) }}"
+    volumes: "{{ item.volumes | default(omit) }}"
+    ports: "{{ item.ports | default(omit) }}"
+    networks: "{{ item.networks | default(omit) }}"
+    restart_policy: "{{ item.restart_policy | default('always') }}"
+    user: "{{ item.user | default(omit) }}"
+    devices: "{{ item.devices | default(omit) }}"
+    healthcheck: "{{ item.healthcheck | default(omit) }}"
+    image_name_mismatch: "{{ item.image_name_mismatch | default(omit) }}"
+  loop: "{{ internal_docker_containers }}"
+  loop_control:
+    label: "{{ item.name }}"
+  become: true
+
+- name: Wait for Paperless DB to be healthy
+  community.docker.docker_container_info:
+    name: paperless-db
+  register: internal_paperless_db_info
+  until: internal_paperless_db_info.containers | length > 0 and internal_paperless_db_info.containers[0].State.Health.Status == "healthy"
+  retries: 30
+  delay: 10
+  changed_when: false
+  become: true
+
+- name: Wait for Home Assistant DB to be healthy
+  community.docker.docker_container_info:
+    name: home-assistant-db
+  register: internal_home_assistant_db_info
+  until: internal_home_assistant_db_info.containers | length > 0 and internal_home_assistant_db_info.containers[0].State.Health.Status == "healthy"
+  retries: 30
+  delay: 10
+  changed_when: false
+  become: true
