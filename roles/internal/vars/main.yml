@@ -1,0 +1,438 @@
+---
+internal_docker_containers:
+  - name: paperless-redis
+    image: docker.io/library/redis:7
+    volumes:
+      - "{{ CFG_MOUNT }}/paperless-redis:/redisdata"
+    networks:
+      - name: internal-net
+    restart_policy: unless-stopped
+
+  - name: paperless-gotenberg
+    image: docker.io/gotenberg/gotenberg:7.8
+    command:
+      - gotenberg
+      - --chromium-disable-javascript=true
+      - --chromium-allow-list=file:///tmp/.*
+    networks:
+      - name: internal-net
+    restart_policy: unless-stopped
+
+  - name: paperless-tika
+    image: ghcr.io/paperless-ngx/tika:latest
+    networks:
+      - name: internal-net
+    restart_policy: unless-stopped
+
+  - name: paperless-db
+    image: lscr.io/linuxserver/mariadb:10.11.8
+    image_name_mismatch: recreate
+    env:
+      MYSQL_DATABASE: pldb
+      MYSQL_LOG_CONSOLE: "true"
+      MYSQL_PASSWORD: "{{ PL_MYSQL_PASSWORD }}"
+      MYSQL_ROOT_PASSWORD: "{{ PL_MYSQL_ROOT_PASSWORD }}"
+      MYSQL_USER: pl
+      PGID: "{{ GID | string }}"
+      PUID: "{{ UID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/paperless-db:/config"
+    networks:
+      - name: internal-net
+    restart_policy: always
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  - name: paperless
+    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    env:
+      PAPERLESS_ADMIN_PASSWORD: "{{ PL_ADMIN_PASSWORD }}"
+      PAPERLESS_ADMIN_USER: "{{ PL_ADMIN_USER }}"
+      PAPERLESS_CONSUMER_POLLING: "30"
+      PAPERLESS_DBENGINE: mariadb
+      PAPERLESS_DBHOST: paperless-db
+      PAPERLESS_DBNAME: pldb
+      PAPERLESS_DBPASS: "{{ PL_MYSQL_PASSWORD }}"
+      PAPERLESS_DBPORT: "3306"
+      PAPERLESS_DBUSER: pl
+      PAPERLESS_FILENAME_FORMAT: "{created_year}/{correspondent}/{title}"
+      PAPERLESS_FILENAME_FORMAT_REMOVE_NONE: "True"
+      PAPERLESS_LOGGING_DIR: /logs
+      PAPERLESS_REDIS: redis://paperless-redis:6379
+      PAPERLESS_TIKA_ENABLED: "1"
+      PAPERLESS_TIKA_ENDPOINT: http://paperless-tika:9998
+      PAPERLESS_TIKA_GOTENBERG_ENDPOINT: http://paperless-gotenberg:3000
+      PAPERLESS_URL: "{{ PL_URL }}"
+      USERMAP_GID: "{{ GID | string }}"
+      USERMAP_UID: "{{ UID | string }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/paperless-cfg/data:/usr/src/paperless/data"
+      - "{{ CFG_MOUNT }}/paperless-cfg/media:/usr/src/paperless/media"
+      - "{{ CFG_MOUNT }}/paperless-cfg/export:/usr/src/paperless/export"
+      - "{{ CFG_MOUNT }}/paperless-cfg/consume:/usr/src/paperless/consume"
+      - "{{ CFG_MOUNT }}/logs/paperless:/logs"
+    ports:
+      - "8355:8000"
+    networks:
+      - name: internal-net
+    restart_policy: unless-stopped
+
+  - name: home-assistant-db
+    image: lscr.io/linuxserver/mariadb:10.11.8
+    image_name_mismatch: recreate
+    env:
+      MYSQL_DATABASE: hadb
+      MYSQL_LOG_CONSOLE: "true"
+      MYSQL_PASSWORD: "{{ HA_MYSQL_PASSWORD }}"
+      MYSQL_ROOT_PASSWORD: "{{ HA_MYSQL_ROOT_PASSWORD }}"
+      MYSQL_USER: ha
+      PGID: "{{ GID | string }}"
+      PUID: "{{ UID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/home-assistant-db:/config"
+    networks:
+      - name: internal-net
+    restart_policy: always
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  - name: home-assistant
+    image: homeassistant/home-assistant:latest
+    env:
+      PGID: "{{ GID | string }}"
+      PUID: "{{ UID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/home-assistant-cfg:/config"
+      - /run/dbus:/run/dbus:ro
+    ports:
+      - "8123:8123"
+    networks:
+      - name: internal-net
+    restart_policy: always
+
+  - name: linkding
+    image: sissbruecker/linkding:latest
+    env:
+      LD_DISABLE_BACKGROUND_TASKS: "False"
+      LD_DISABLE_URL_VALIDATION: "False"
+      LD_HOST_DATA_DIR: ./data
+      LD_HOST_PORT: "9090"
+    volumes:
+      - "{{ CFG_MOUNT }}/linkding-cfg:/etc/linkding/data"
+    ports:
+      - "9090:9090"
+    networks:
+      - name: internal-net
+    restart_policy: always
+
+  - name: duplicacy
+    image: saspus/duplicacy-web:latest
+    env:
+      PGID: "{{ GID | string }}"
+      PUID: "{{ UID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/duplicacy-cfg:/config"
+      - "{{ CFG_MOUNT }}/duplicacy-cfg/cache:/cache"
+      - "{{ CFG_MOUNT }}/logs/duplicacy:/logs"
+      - /nfs/backup:/backup:ro
+    ports:
+      - "8233:3875"
+    networks:
+      - name: internal-net
+    restart_policy: always
+
+  - name: unpackerr
+    image: golift/unpackerr
+    user: "{{ UID | string }}:{{ GID | string }}"
+    env:
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ UNPACKERR_MOUNT }}"
+      - "{{ CFG_MOUNT }}/unpackerr-cfg:/config"
+    networks:
+      - name: internal-net
+    restart_policy: always
+
+  - name: prowlarr
+    image: linuxserver/prowlarr
+    env:
+      PGID: "{{ GID | string }}"
+      PUID: "{{ UID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/prowlarr-cfg:/config"
+    ports:
+      - "9696:9696"
+    networks:
+      - name: internal-net
+    restart_policy: always
+
+  - name: radarr
+    image: linuxserver/radarr:latest
+    env:
+      PGID: "{{ GID | string }}"
+      PUID: "{{ UID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ RADARR_MOUNT }}"
+      - "{{ CFG_MOUNT }}/radarr-cfg:/config"
+    ports:
+      - "7878:7878"
+    networks:
+      - name: internal-net
+    restart_policy: always
+
+  - name: sonarr
+    image: linuxserver/sonarr:latest
+    env:
+      PGID: "{{ GID | string }}"
+      PUID: "{{ UID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ SONARR_MOUNT }}"
+      - "{{ CFG_MOUNT }}/sonarr-cfg:/config"
+    ports:
+      - "8989:8989"
+    networks:
+      - name: internal-net
+    restart_policy: always
+
+  - name: overseerr
+    image: linuxserver/overseerr:latest
+    env:
+      PGID: "{{ GID | string }}"
+      PUID: "{{ UID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/overseerr-cfg:/config"
+    ports:
+      - "5055:5055"
+    networks:
+      - name: internal-net
+    restart_policy: always
+
+  - name: projectsend-db
+    image: mariadb:10
+    hostname: projectsend-db
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --max-connections=1000
+    env:
+      MYSQL_DATABASE: projectsend
+      MYSQL_PASSWORD: "{{ PROJECTSEND_DATABASE_PASSWORD }}"
+      MYSQL_ROOT_PASSWORD: "{{ PROJECTSEND_MYSQL_ROOT_PASSWORD }}"
+      MYSQL_USER: projectsend
+    volumes:
+      - "{{ CFG_MOUNT }}/projectsend-db-cfg:/var/lib/mysql"
+    networks:
+      - name: internal-net
+    restart_policy: always
+
+  - name: projectsend
+    image: linuxserver/projectsend
+    env:
+      PGID: "{{ GID | string }}"
+      PUID: "{{ UID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/projectsend-cfg/config:/config"
+      - "{{ CFG_MOUNT }}/projectsend-cfg/data:/data"
+    ports:
+      - "8122:80"
+    networks:
+      - name: internal-net
+    restart_policy: always
+
+  - name: playwright
+    image: browserless/chrome
+    networks:
+      - name: internal-net
+    restart_policy: unless-stopped
+
+  - name: changedetection
+    image: dgtlmoon/changedetection.io:latest
+    env:
+      PLAYWRIGHT_DRIVER_URL: ws://playwright:3000
+    volumes:
+      - "{{ CFG_MOUNT }}/changedetection-cfg:/datastore"
+    ports:
+      - "5000:5000"
+    networks:
+      - name: internal-net
+    restart_policy: always
+
+  - name: babybuddy
+    image: lscr.io/linuxserver/babybuddy:latest
+    env:
+      PGID: "{{ GID | string }}"
+      PUID: "{{ UID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/babybuddy-cfg:/config"
+    ports:
+      - "8000:8000"
+    networks:
+      - name: internal-net
+    restart_policy: always
+
+  - name: mosquitto
+    image: eclipse-mosquitto:2.0
+    hostname: mosquitto
+    env:
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/mosquitto-cfg:/mosquitto/config"
+      - "{{ CFG_MOUNT }}/mosquitto-data:/mosquitto/data"
+      - "{{ CFG_MOUNT }}/mosquitto-logs:/mosquitto/log"
+    networks:
+      - name: internal-net
+    restart_policy: always
+
+  - name: mqtt
+    image: ghcr.io/koenkk/zigbee2mqtt:latest
+    env:
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/zigbee2mqtt-cfg:/app/data"
+      - /run/udev:/run/udev:ro
+    devices:
+      - "{{ MQTT_DEVICE_MAPPING }}"
+    ports:
+      - "8544:8080"
+    networks:
+      - name: internal-net
+    restart_policy: always
+
+  - name: cw
+    image: linuxserver/calibre-web:latest
+    env:
+      PGID: "{{ GID | string }}"
+      PUID: "{{ UID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/calibre-web-cfg:/config"
+      - "{{ CFG_MOUNT }}/calibre-cfg:/books"
+    ports:
+      - "8083:8083"
+    networks:
+      - name: internal-net
+    restart_policy: always
+
+  - name: tautulli
+    image: linuxserver/tautulli:latest
+    env:
+      PGID: "{{ GID | string }}"
+      PUID: "{{ UID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/tautulli-cfg:/config"
+    ports:
+      - "8181:8181"
+    networks:
+      - name: internal-net
+    restart_policy: always
+
+  - name: bookstack_db
+    image: lscr.io/linuxserver/mariadb:10.11.8
+    image_name_mismatch: recreate
+    env:
+      MYSQL_DATABASE: bookstackapp
+      MYSQL_PASSWORD: "{{ BOOKSTACK_DATABASE_PASSWORD }}"
+      MYSQL_ROOT_PASSWORD: "{{ BOOKSTACK_MYSQL_ROOT_PASSWORD }}"
+      MYSQL_USER: bookstack
+      PGID: "{{ GID | string }}"
+      PUID: "{{ UID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/bookstack-db-cfg:/config"
+    networks:
+      - name: internal-net
+    restart_policy: unless-stopped
+
+  - name: bookstack
+    image: lscr.io/linuxserver/bookstack:latest
+    env:
+      APP_URL: "https://bookstack.{{ DNS_DOMAIN }}"
+      DB_DATABASE: bookstackapp
+      DB_HOST: bookstack_db
+      DB_PASS: "{{ BOOKSTACK_DATABASE_PASSWORD }}"
+      DB_PORT: "3306"
+      DB_USER: bookstack
+      PGID: "{{ GID | string }}"
+      PUID: "{{ UID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/bookstack-cfg:/config"
+    ports:
+      - "6875:80"
+    networks:
+      - name: internal-net
+    restart_policy: unless-stopped
+
+  - name: homepage
+    image: ghcr.io/gethomepage/homepage:latest
+    env:
+      HOMEPAGE_ALLOWED_HOSTS: "home.{{ DNS_DOMAIN }}"
+      PGID: "{{ GID | string }}"
+      PUID: "{{ UID | string }}"
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/homepage-cfg:/app/config"
+      - "{{ CFG_MOUNT }}/homepage-icons:/app/public/icons"
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - name: internal-net
+    restart_policy: always
+
+  - name: homebox
+    image: ghcr.io/sysadminsmedia/homebox:latest
+    env:
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/homebox-cfg:/data"
+    ports:
+      - "7745:7745"
+    networks:
+      - name: internal-net
+    restart_policy: always
+
+  - name: watchtower
+    image: containrrr/watchtower:latest
+    command: --cleanup
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - name: internal-net
+    restart_policy: always
+
+internal_nginx_sites:
+  - dsm
+  - cw
+  - qbt
+  - surveillance
+  - paperless
+  - ha
+  - links
+  - duplicacy
+  - prowlarr
+  - radarr
+  - sonarr
+  - overseerr
+  - send
+  - cd
+  - mqtt
+  - babybuddy
+  - tautulli
+  - bookstack
+  - homebox
+  - home
