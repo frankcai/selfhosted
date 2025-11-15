@@ -1,0 +1,74 @@
+---
+- name: Define Docker daemon configuration
+  ansible.builtin.set_fact:
+    internal_docker_daemon_config:
+      hosts:
+        - "unix:///var/run/docker.sock"
+        - "tcp://{{ INTERNAL_HOST_DOCKER }}"
+      dns:
+        - "{{ DNS_HOST }}"
+
+- name: Create or update the daemon.json file with TCP settings
+  ansible.builtin.copy:
+    content: "{{ internal_docker_daemon_config | to_nice_json(indent=2) }}\n"
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: Restart Docker
+
+- name: Ensure the directory for systemd override exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+    mode: "0755"
+  become: true
+
+- name: Create or update override.conf content
+  ansible.builtin.copy:
+    content: |
+      [Service]
+      # The blank ExecStart is required to clear the current entry point
+      ExecStart=
+      # Replace the existing ExecStart but only remove the properties that you have added into the daemon.json file, leave all else the same.
+      ExecStart=/usr/bin/dockerd --containerd=/run/containerd/containerd.sock
+    dest: /etc/systemd/system/docker.service.d/override.conf
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify:
+    - Reload Daemon
+    - Restart Docker
+
+- name: Ensure Docker service is started and enabled
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+  become: true
+
+- name: Set docker socket permissions
+  ansible.builtin.file:
+    path: /var/run/docker.sock
+    group: docker
+    mode: "0660"
+  become: true
+
+- name: Add user to docker group
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: true
+  when: ansible_os_family == "Debian"
+  become: true
+
+- name: Create a user-defined bridge network for service discovery
+  community.docker.docker_network:
+    name: internal-net
+    driver_options:
+      com.docker.network.bridge.name: internal-net
+    ipam_config:
+      - subnet: "172.25.0.0/16"
+    state: present
