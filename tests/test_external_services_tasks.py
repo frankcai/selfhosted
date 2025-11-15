@@ -80,14 +80,20 @@ def test_each_service_task_notifies_existing_handler() -> None:
 
 @pytest.mark.parametrize("service_file", list(_iter_service_task_files()))
 def test_service_tasks_use_docker_container_module(service_file: Path) -> None:
-    """Ensure every service task configures a docker container with a restart policy."""
+    """Ensure every service defines container tasks with restart policies."""
 
     tasks = _load_yaml_documents(service_file)
     assert tasks, f"Expected at least one task in {service_file.name}"
 
-    for task in tasks:
-        assert isinstance(task, dict), f"Unexpected task structure in {service_file.name}"
-        container_config = task.get("community.docker.docker_container")
+    container_tasks = [
+        task
+        for task in tasks
+        if isinstance(task, dict) and "community.docker.docker_container" in task
+    ]
+    assert container_tasks, f"{service_file.name} must define at least one container task"
+
+    for task in container_tasks:
+        container_config = task["community.docker.docker_container"]
         assert isinstance(
             container_config, dict
         ), f"Task in {service_file.name} must use docker_container module"

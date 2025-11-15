@@ -1,0 +1,74 @@
+---
+- name: Set DNS server for systemd-resolved
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/resolved.conf
+    regexp: "^#?DNS="
+    line: "DNS={{ DNS_HOST }}"
+    state: present
+  become: true
+
+- name: Restart systemd-resolved
+  ansible.builtin.systemd:
+    name: systemd-resolved
+    state: restarted
+  become: true
+
+- name: Link resolv.conf to systemd-resolved
+  ansible.builtin.file:
+    src: /run/systemd/resolve/resolv.conf
+    dest: /etc/resolv.conf
+    state: link
+  become: true
+
+- name: Repair dpkg if in bad state
+  ansible.builtin.shell: |
+    set -e
+    dpkg --audit >/dev/null 2>&1 || true
+    dpkg --configure -a
+    apt-get -y -f install
+  args:
+    executable: /bin/bash
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  become: true
+  changed_when: false
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    lock_timeout: 600
+  when: ansible_os_family == "Debian"
+  become: true
+
+- name: Install required packages
+  ansible.builtin.apt:
+    name:
+      - nfs-common
+      - docker.io
+      - docker-compose
+      - nginx
+      - ufw
+      - fail2ban
+      - jq
+    state: present
+  when: ansible_os_family == "Debian"
+  become: true
+
+- name: Check if WireGuard route exists
+  ansible.builtin.command: >-
+    ip route show {{ WG_NETWORK }}
+    via {{ VPN_HOST }} dev ens18 proto static
+  register: internal_route_check
+  ignore_errors: true
+  changed_when: false
+  failed_when: false
+  become: true
+
+- name: Add route to WireGuard network if not present
+  ansible.builtin.command: >-
+    ip route add {{ WG_NETWORK }}
+    via {{ VPN_HOST }} dev ens18 proto static onlink
+  when: internal_route_check.rc != 0
+  changed_when: internal_route_check.rc != 0
+  become: true

@@ -1,0 +1,16 @@
+---
+- name: Set up cron job for system package updates
+  ansible.builtin.cron:
+    name: System Package Updates
+    hour: "4"
+    minute: "0"
+    job: "apt-get update && apt-get upgrade -y"
+  become: true
+
+- name: Set up cron job for paperless backup
+  ansible.builtin.cron:
+    name: Export documents from paperless
+    minute: "0"
+    hour: "4"
+    job: "docker exec paperless document_exporter ../export"
+  become: true

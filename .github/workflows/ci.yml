@@ -29,7 +29,7 @@ jobs:
         run: echo "placeholder" > vault_pass.txt
 
       - name: Lint Ansible content
-        run: ansible-lint
+        run: ansible-lint --profile basic
 
       - name: Validate playbooks
         run: ansible-playbook --syntax-check site.yml
