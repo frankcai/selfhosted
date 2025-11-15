@@ -152,7 +152,7 @@ internal_docker_containers:
     restart_policy: always
 
   - name: unpackerr
-    image: golift/unpackerr
+    image: golift/unpackerr:latest
     user: "{{ UID | string }}:{{ GID | string }}"
     env:
       TZ: "{{ TIME_ZONE }}"
@@ -164,7 +164,7 @@ internal_docker_containers:
     restart_policy: always
 
   - name: prowlarr
-    image: linuxserver/prowlarr
+    image: linuxserver/prowlarr:latest
     env:
       PGID: "{{ GID | string }}"
       PUID: "{{ UID | string }}"
@@ -237,7 +237,7 @@ internal_docker_containers:
     restart_policy: always
 
   - name: projectsend
-    image: linuxserver/projectsend
+    image: linuxserver/projectsend:latest
     env:
       PGID: "{{ GID | string }}"
       PUID: "{{ UID | string }}"
@@ -252,7 +252,7 @@ internal_docker_containers:
     restart_policy: always
 
   - name: playwright
-    image: browserless/chrome
+    image: browserless/chrome:latest
     networks:
       - name: internal-net
     restart_policy: unless-stopped
