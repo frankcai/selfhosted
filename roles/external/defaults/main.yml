@@ -24,3 +24,13 @@ external_nginx_sites_enabled:
   - jellyfin
   - ntfy
   - navidrome
+
+external_authentik_pg_image: docker.io/library/postgres:15-alpine
+external_authentik_image: ghcr.io/goauthentik/server:2024.6.2
+external_authentik_pg_data_dir: /opt/authentik/postgres
+external_authentik_media_dir: /opt/authentik/media
+external_authentik_config_dir: /opt/authentik/config
+external_authentik_http_port: 9000
+external_authentik_https_port: 9443
+external_authentik_redis_host: redis
+external_authentik_redis_port: 6379

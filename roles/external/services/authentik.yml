@@ -1,0 +1,41 @@
+---
+- name: External | Services | Authentik | Run Postgres container
+  community.docker.docker_container:
+    name: authentik-postgres
+    image: "{{ external_authentik_pg_image }}"
+    restart_policy: always
+    env:
+      POSTGRES_DB: "{{ AUTHENTIK_PG_DB }}"
+      POSTGRES_USER: "{{ AUTHENTIK_PG_USER }}"
+      POSTGRES_PASSWORD: "{{ AUTHENTIK_PG_PASS }}"
+    volumes:
+      - "{{ external_authentik_pg_data_dir }}:/var/lib/postgresql/data"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ AUTHENTIK_PG_USER }}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+- name: External | Services | Authentik | Run application container
+  community.docker.docker_container:
+    name: authentik
+    image: "{{ external_authentik_image }}"
+    restart_policy: always
+    env:
+      AUTHENTIK_SECRET_KEY: "{{ AUTHENTIK_SECRET_KEY }}"
+      AUTHENTIK_DATABASE_ENGINE: django.db.backends.postgresql
+      AUTHENTIK_DATABASE_NAME: "{{ AUTHENTIK_PG_DB }}"
+      AUTHENTIK_DATABASE_USER: "{{ AUTHENTIK_PG_USER }}"
+      AUTHENTIK_DATABASE_PASSWORD: "{{ AUTHENTIK_PG_PASS }}"
+      AUTHENTIK_DATABASE_HOST: authentik-postgres
+      AUTHENTIK_REDIS_HOST: "{{ external_authentik_redis_host }}"
+      AUTHENTIK_REDIS_PORT: "{{ external_authentik_redis_port }}"
+    volumes:
+      - "{{ external_authentik_media_dir }}:/media"
+      - "{{ external_authentik_config_dir }}:/config"
+    ports:
+      - "{{ external_authentik_http_port }}:9000"
+      - "{{ external_authentik_https_port }}:9443"
+    links:
+      - authentik-postgres
