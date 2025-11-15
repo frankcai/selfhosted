@@ -1,41 +1,77 @@
 ---
-- name: External | Services | Authentik | Run Postgres container
+- name: Ensure Authentik network exists
+  community.docker.docker_network:
+    name: authentik
+
+- name: Ensure Authentik Postgres is running
   community.docker.docker_container:
-    name: authentik-postgres
-    image: "{{ external_authentik_pg_image }}"
-    restart_policy: always
+    name: authentik-postgresql
+    image: "docker.io/library/postgres:16-alpine"
+    restart_policy: unless-stopped
     env:
       POSTGRES_DB: "{{ AUTHENTIK_PG_DB }}"
       POSTGRES_USER: "{{ AUTHENTIK_PG_USER }}"
-      POSTGRES_PASSWORD: "{{ AUTHENTIK_PG_PASS }}"
+      POSTGRES_PASSWORD: "{{ AUTHENTIK_PG_PASS }}"    
     volumes:
-      - "{{ external_authentik_pg_data_dir }}:/var/lib/postgresql/data"
+      - "{{ CFG_MOUNT }}/authentik-cfg/data:/var/lib/postgresql/data"
+    networks:
+      - name: authentik
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U {{ AUTHENTIK_PG_USER }}"]
+      test: ["CMD-SHELL", "pg_isready -d $POSTGRES_DB -U $POSTGRES_USER"]
       interval: 30s
-      timeout: 10s
+      timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 20s
+  notify: Restart Authentik Postgres Container
 
-- name: External | Services | Authentik | Run application container
+- name: Wait until Postgres is healthy
+  community.docker.docker_container_info:
+    name: authentik-postgresql
+  register: pg_info
+  until: pg_info.container.State.Health.Status == 'healthy'
+  retries: 20
+  delay: 3
+
+- name: Ensure Authentik server is running
   community.docker.docker_container:
     name: authentik
-    image: "{{ external_authentik_image }}"
-    restart_policy: always
+    image: "ghcr.io/goauthentik/server:2025.10.0"
+    command: server
+    restart_policy: unless-stopped
     env:
+      AUTHENTIK_POSTGRESQL__HOST: "authentik-postgresql"
+      AUTHENTIK_POSTGRESQL__NAME: "{{ AUTHENTIK_PG_DB }}"
+      AUTHENTIK_POSTGRESQL__USER: "{{ AUTHENTIK_PG_USER }}"
+      AUTHENTIK_POSTGRESQL__PASSWORD: "{{AUTHENTIK_PG_PASS }}"
       AUTHENTIK_SECRET_KEY: "{{ AUTHENTIK_SECRET_KEY }}"
-      AUTHENTIK_DATABASE_ENGINE: django.db.backends.postgresql
-      AUTHENTIK_DATABASE_NAME: "{{ AUTHENTIK_PG_DB }}"
-      AUTHENTIK_DATABASE_USER: "{{ AUTHENTIK_PG_USER }}"
-      AUTHENTIK_DATABASE_PASSWORD: "{{ AUTHENTIK_PG_PASS }}"
-      AUTHENTIK_DATABASE_HOST: authentik-postgres
-      AUTHENTIK_REDIS_HOST: "{{ external_authentik_redis_host }}"
-      AUTHENTIK_REDIS_PORT: "{{ external_authentik_redis_port }}"
-    volumes:
-      - "{{ external_authentik_media_dir }}:/media"
-      - "{{ external_authentik_config_dir }}:/config"
     ports:
-      - "{{ external_authentik_http_port }}:9000"
-      - "{{ external_authentik_https_port }}:9443"
-    links:
-      - authentik-postgres
+      - "9050:9000"
+      - "9443:9443"
+    volumes:
+      - "{{ CFG_MOUNT }}/authentik-cfg/media:/media"
+      - "{{ CFG_MOUNT }}/authentik-cfg/templates:/templates"
+    networks:
+      - name: authentik
+  notify: Restart Authentik Server Container
+
+- name: Ensure Authentik worker is running
+  community.docker.docker_container:
+    name: authentik-worker
+    image: "ghcr.io/goauthentik/server:2025.10.0"
+    command: worker
+    user: "root"
+    restart_policy: unless-stopped
+    env:
+      AUTHENTIK_POSTGRESQL__HOST: "authentik-postgresql"
+      AUTHENTIK_POSTGRESQL__NAME: "{{ AUTHENTIK_PG_DB }}"
+      AUTHENTIK_POSTGRESQL__USER: "{{ AUTHENTIK_PG_USER }}"
+      AUTHENTIK_POSTGRESQL__PASSWORD: "{{ AUTHENTIK_PG_PASS }}"
+      AUTHENTIK_SECRET_KEY: "{{ AUTHENTIK_SECRET_KEY }}"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "{{ CFG_MOUNT }}/authentik-cfg/media:/media"
+      - "{{ CFG_MOUNT }}/authentik-cfg/certs:/certs"
+      - "{{ CFG_MOUNT }}/authentik-cfg/templates:/templates"
+    networks:
+      - name: authentik
+  notify: Restart Authentik Worker Container

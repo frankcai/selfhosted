@@ -55,3 +55,18 @@
   ansible.builtin.command: netplan apply
   become: true
   changed_when: false
+- name: Restart Authentik Postgres Container
+  community.docker.docker_container:
+    name: authentik-postgresql
+    state: started
+  become: true    
+- name: Restart Authentik Server Container
+  community.docker.docker_container:
+    name: authentik
+    state: started
+  become: true    
+- name: Restart Authentik Worker Container
+  community.docker.docker_container:
+    name: authentik-worker
+    state: started
+  become: true    
