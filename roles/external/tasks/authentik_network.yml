@@ -1,0 +1,4 @@
+---
+- name: Ensure Authentik network exists
+  community.docker.docker_network:
+    name: "{{ external_authentik_network }}"

@@ -26,3 +26,19 @@ external_nginx_sites_enabled:
   - ntfy
   - navidrome
   - authentik
+
+# Authentik defaults
+external_authentik_certs_dir: "{{ CFG_MOUNT }}/authentik-cfg/certs"
+external_authentik_config_dir: "{{ CFG_MOUNT }}/authentik-cfg/templates"
+external_authentik_https_port: 9443
+external_authentik_http_port: 9050
+external_authentik_image: "ghcr.io/goauthentik/server:2025.10.0"
+external_authentik_media_dir: "{{ CFG_MOUNT }}/authentik-cfg/media"
+external_authentik_network: authentik
+external_authentik_pg_data_dir: "{{ CFG_MOUNT }}/authentik-cfg/data"
+external_authentik_pg_image: "docker.io/library/postgres:16-alpine"
+external_authentik_postgres_container: authentik-postgresql
+external_authentik_redis_host: authentik-redis
+external_authentik_redis_port: 6379
+external_authentik_server_container: authentik
+external_authentik_worker_container: authentik-worker

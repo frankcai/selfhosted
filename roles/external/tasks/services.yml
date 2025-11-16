@@ -3,10 +3,6 @@
   when: "'authentik' in external_enabled_services"
 
 - name: External | Services | Include Uptime-Kuma
-  ansible.builtin.include_tasks: services/authentik.yml
-  when: "'authentik' in external_enabled_services"
-
-- name: External | Services | Include Uptime-Kuma
   ansible.builtin.include_tasks: services/uptime-kuma.yml
   when: "'uptime-kuma' in external_enabled_services"
 
