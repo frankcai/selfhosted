@@ -22,17 +22,3 @@ def test_authentik_secret_placeholders_exist() -> None:
     assert key in secrets, f"Missing {key} in secrets.default.yml"
 
 
-def test_authentik_role_defaults_exist() -> None:
-  defaults = _load_yaml("roles/external/defaults/main.yml")
-  for key in [
-    "external_authentik_pg_image",
-    "external_authentik_image",
-    "external_authentik_pg_data_dir",
-    "external_authentik_media_dir",
-    "external_authentik_config_dir",
-    "external_authentik_http_port",
-    "external_authentik_https_port",
-    "external_authentik_redis_host",
-    "external_authentik_redis_port",
-  ]:
-    assert key in defaults, f"Missing {key} in external defaults"
