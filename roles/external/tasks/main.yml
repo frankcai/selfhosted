@@ -34,7 +34,21 @@
   when: external_enable_nginx
   tags: [external, external_nginx]
 
+- name: External | Authentik | Prepare network
+  ansible.builtin.include_tasks: authentik_network.yml
+  when:
+    - external_enable_services
+    - "'authentik' in external_enabled_services"
+  tags: [external, external_services, external_authentik]
+
 - name: External | Services
   ansible.builtin.include_tasks: services.yml
   when: external_enable_services
   tags: [external, external_services]
+
+- name: External | Authentik | Verify Postgres health
+  ansible.builtin.include_tasks: authentik_postgres_healthcheck.yml
+  when:
+    - external_enable_services
+    - "'authentik' in external_enabled_services"
+  tags: [external, external_services, external_authentik]

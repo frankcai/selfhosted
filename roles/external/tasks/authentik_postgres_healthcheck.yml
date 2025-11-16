@@ -1,0 +1,8 @@
+---
+- name: Wait until Authentik Postgres is healthy
+  community.docker.docker_container_info:
+    name: authentik-postgresql
+  register: external_authentik_pg_info
+  until: external_authentik_pg_info.container.State.Health.Status == 'healthy'
+  retries: 20
+  delay: 3
