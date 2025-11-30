@@ -406,6 +406,47 @@ internal_docker_containers:
       - name: internal-net
     restart_policy: always
 
+  - name: realestate-db
+    hostname: realestate-db
+    image: docker.io/library/postgres:15
+    image_name_mismatch: recreate
+    env:
+      POSTGRES_DB: "{{ REALESTATE_DB_NAME }}"
+      POSTGRES_USER: "{{ REALESTATE_DB_USER }}"
+      POSTGRES_PASSWORD: "{{ REALESTATE_DB_PASSWORD }}"
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      PGDATA: /var/lib/postgresql/data/pgdata
+      TZ: "{{ TIME_ZONE }}"
+    volumes:
+      - "{{ CFG_MOUNT }}/realestate-db:/var/lib/postgresql/data"
+    networks:
+      - name: internal-net
+    restart_policy: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ REALESTATE_DB_USER }} -d {{ REALESTATE_DB_NAME }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  - name: realestate
+    image: rentum/deal-analyzer:latest
+    pull: true
+    recreate: true
+    env:
+      POSTGRES_HOST: realestate-db
+      POSTGRES_PORT: "{{ REALESTATE_DB_PORT }}"
+      POSTGRES_USER: "{{ REALESTATE_DB_USER }}"
+      POSTGRES_PASSWORD: "{{ REALESTATE_DB_PASSWORD }}"
+      POSTGRES_DB: "{{ REALESTATE_DB_NAME }}"
+      PORT: "4000"
+    volumes:
+      - "{{ CFG_MOUNT }}/realestate-cfg:/config"
+    ports:
+      - "8383:4000"
+    networks:
+      - name: internal-net
+    restart_policy: always
+
   - name: watchtower
     image: containrrr/watchtower:latest
     command: --cleanup
@@ -436,3 +477,4 @@ internal_nginx_sites:
   - bookstack
   - homebox
   - home
+  - realestate

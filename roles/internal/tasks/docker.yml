@@ -72,3 +72,10 @@
     ipam_config:
       - subnet: "172.25.0.0/16"
     state: present
+
+- name: Log in to Docker Hub for private images
+  community.docker.docker_login:
+    registry_url: https://index.docker.io/v1/
+    username: "{{ DOCKERHUB_USERNAME }}"
+    password: "{{ DOCKERHUB_PAT }}"
+  become: true

@@ -14,6 +14,9 @@
     devices: "{{ item.devices | default(omit) }}"
     healthcheck: "{{ item.healthcheck | default(omit) }}"
     image_name_mismatch: "{{ item.image_name_mismatch | default(omit) }}"
+    pull: "{{ item.pull | default(omit) }}"
+    recreate: "{{ item.recreate | default(omit) }}"
+    restart: "{{ item.restart | default(omit) }}"
   loop: "{{ internal_docker_containers }}"
   loop_control:
     label: "{{ item.name }}"
