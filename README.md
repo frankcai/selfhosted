@@ -64,6 +64,16 @@ sudo ansible-playbook site.yml --limit internal
 
 Because many roles manage Docker containers, ensure the target hosts can reach any required registries (public or private) and that credentials are stored in `secrets.yml`.
 
+## Local Git Hooks
+
+Point Git at the repo-provided hooks to require the same lint/syntax/test checks before every commit:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The pre-commit hook runs `ansible-lint`, `ansible-playbook --syntax-check site.yml`, and `python -m pytest`. It expects a local `vault_pass.txt` so Ansible can unlock vaulted variables.
+
 ## Operational Tips
 
 * Use the provided cron snippets to keep the control node tidy and automatically re-apply the playbooks:

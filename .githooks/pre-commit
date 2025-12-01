@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+# Abort on errors or unset variables; propagate failures through pipelines.
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+# These checks mirror the expectations documented in README.md and CI.
+checks=(
+  "ansible-lint"
+  "ansible-playbook --syntax-check site.yml"
+  "python -m pytest"
+)
+
+if [ ! -f "$repo_root/vault_pass.txt" ]; then
+  echo "Missing vault_pass.txt; create a local vault password file to unlock the vault during linting/syntax checks." >&2
+  exit 1
+fi
+
+for check in "${checks[@]}"; do
+  echo "Running ${check}..."
+  if ! eval "${check}"; then
+    echo "Pre-commit hook blocked commit because '${check}' failed." >&2
+    exit 1
+  fi
+done
+
+echo "All pre-commit checks passed."
