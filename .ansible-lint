@@ -1,0 +1,4 @@
+---
+exclude_paths:
+  - group_vars/all.yml
+  - secrets.yml
