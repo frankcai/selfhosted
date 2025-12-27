@@ -84,6 +84,12 @@ The pre-commit hook runs `ansible-lint`, `ansible-playbook --syntax-check site.y
 * Follow the shared conventions in `AGENTS.md` when adding services or roles (two-space YAML indentation, module-driven tasks, handler naming, etc.).
 * Never commit real credentials. If a service requires a new secret, add it to `secrets.default.yml`, document it in the relevant role README, and store the live value only in the vaulted `secrets.yml`.
 
+## Authentik + Uptime Kuma
+
+Uptime Kuma can sit behind Authentik’s embedded proxy outpost. Enable it by setting `external_uptime_kuma_authentik_enabled: true` and `external_authentik_apply_blueprints: true` in `secrets.yml`. The role will render a blueprint at `{{ CFG_MOUNT }}/authentik-cfg/templates/blueprints/uptime-kuma.yaml`, apply it via the Authentik CLI in the worker container, and update the Nginx site to forward auth requests to Authentik. Leave the toggle off if you prefer to import the blueprint manually via the Authentik UI.
+
+The blueprint also provisions a dedicated service account and API token for the embedded outpost. Set `AUTHENTIK_API_TOKEN` in `secrets.yml` to a long random string so the outpost can authenticate back to Authentik and report healthy.
+
 ## License
 
 MIT License – see `LICENSE` for the full text.

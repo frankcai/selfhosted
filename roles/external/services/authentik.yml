@@ -32,11 +32,14 @@
       AUTHENTIK_POSTGRESQL__USER: "{{ AUTHENTIK_PG_USER }}"
       AUTHENTIK_POSTGRESQL__PASSWORD: "{{ AUTHENTIK_PG_PASS }}"
       AUTHENTIK_SECRET_KEY: "{{ AUTHENTIK_SECRET_KEY }}"
+      AUTHENTIK_LOG_LEVEL: "debug"
     ports:
       - "9050:9000"
-      - "9443:9443"
+      - "9444:9443"
     volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
       - "{{ CFG_MOUNT }}/authentik-cfg/media:/media"
+      - "{{ CFG_MOUNT }}/authentik-cfg/templates/blueprints:/blueprints"
       - "{{ CFG_MOUNT }}/authentik-cfg/templates:/templates"
     networks:
       - name: authentik
@@ -55,10 +58,12 @@
       AUTHENTIK_POSTGRESQL__USER: "{{ AUTHENTIK_PG_USER }}"
       AUTHENTIK_POSTGRESQL__PASSWORD: "{{ AUTHENTIK_PG_PASS }}"
       AUTHENTIK_SECRET_KEY: "{{ AUTHENTIK_SECRET_KEY }}"
+      AUTHENTIK_LOG_LEVEL: "debug"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
       - "{{ CFG_MOUNT }}/authentik-cfg/media:/media"
       - "{{ CFG_MOUNT }}/authentik-cfg/certs:/certs"
+      - "{{ CFG_MOUNT }}/authentik-cfg/templates/blueprints:/blueprints"
       - "{{ CFG_MOUNT }}/authentik-cfg/templates:/templates"
     networks:
       - name: authentik

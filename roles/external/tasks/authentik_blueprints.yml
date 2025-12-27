@@ -1,0 +1,37 @@
+---
+- name: Ensure Authentik blueprint directory exists
+  ansible.builtin.file:
+    path: "{{ CFG_MOUNT }}/authentik-cfg/templates/blueprints"
+    state: directory
+    mode: "0750"
+  become: true
+
+- name: Render Authentik blueprint for Uptime Kuma
+  ansible.builtin.template:
+    src: authentik/uptime-kuma-blueprint.yaml.j2
+    dest: "{{ CFG_MOUNT }}/authentik-cfg/templates/blueprints/uptime-kuma.yaml"
+    mode: "0640"
+  when: "'uptime-kuma' in external_enabled_services"
+  become: true
+
+- name: Apply Authentik blueprint for Uptime Kuma (ak CLI)
+  community.docker.docker_container_exec:
+    container: authentik-worker
+    argv:
+      - ak
+      - apply_blueprint
+      - /blueprints/uptime-kuma.yaml
+  when:
+    - external_authentik_apply_blueprints
+    - "'uptime-kuma' in external_enabled_services"
+  register: external_authentik_blueprint_apply
+  changed_when: "'no changes' not in (external_authentik_blueprint_apply.stdout | default('') | lower)"
+
+- name: Warn when Authentik blueprint apply is skipped
+  ansible.builtin.debug:
+    msg: >
+      Set external_authentik_apply_blueprints=true to push the uptime-kuma
+      Authentik blueprint automatically.
+  when:
+    - external_authentik_apply_blueprints
+    - "'uptime-kuma' in external_enabled_services"

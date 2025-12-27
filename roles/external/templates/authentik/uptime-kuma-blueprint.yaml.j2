@@ -1,0 +1,105 @@
+version: 1
+metadata:
+  name: uptime-kuma
+  labels:
+    managed-by: ansible
+entries:
+  - model: authentik_core.group
+    id: goauthentik.io/groups/uptime-kuma
+    state: present
+    identifiers:
+      name: "{{ external_uptime_kuma_auth_group }}"
+    attrs:
+      name: "{{ external_uptime_kuma_auth_group }}"
+      parent: null
+  - model: authentik_core.user
+    id: goauthentik.io/users/uptime-kuma-outpost
+    state: present
+    identifiers:
+      username: uptime-kuma-outpost
+    attrs:
+      username: uptime-kuma-outpost
+      name: "Uptime Kuma Outpost"
+      type: service_account
+      is_active: true
+  - model: authentik_core.token
+    id: goauthentik.io/tokens/uptime-kuma-outpost
+    state: present
+    identifiers:
+      identifier: uptime-kuma-outpost
+    attrs:
+      identifier: uptime-kuma-outpost
+      user: !KeyOf goauthentik.io/users/uptime-kuma-outpost
+      key: "{{ AUTHENTIK_API_TOKEN }}"
+      intent: api
+  - model: authentik_providers_proxy.proxyprovider
+    id: goauthentik.io/providers/proxy/uptime-kuma
+    state: present
+    identifiers:
+      name: "Uptime Kuma"
+    attrs:
+      name: "Uptime Kuma"
+      authorization_flow: !Find [authentik_flows.flow, ["slug", "default-provider-authorization-implicit-consent"]]
+      invalidation_flow: !Find [authentik_flows.flow, ["slug", "default-provider-invalidation-flow"]]
+      internal_host: "{{ external_uptime_kuma_internal_host }}"
+      external_host: "{{ external_uptime_kuma_external_host }}"
+      mode: forward_single
+      skip_path_regex: '{{ external_uptime_kuma_skip_path_regex }}'
+  - model: authentik_outposts.dockerserviceconnection
+    id: goauthentik.io/service-connections/docker-local
+    state: present
+    identifiers:
+      name: "{{ external_authentik_docker_service_connection_name }}"
+    attrs:
+      name: "{{ external_authentik_docker_service_connection_name }}"
+      local: true
+      url: "unix://var/run/docker.sock"
+  - model: authentik_core.application
+    id: goauthentik.io/apps/uptime-kuma
+    state: present
+    identifiers:
+      slug: "{{ external_uptime_kuma_application_slug }}"
+    attrs:
+      name: "Uptime Kuma"
+      slug: "{{ external_uptime_kuma_application_slug }}"
+      group: "Monitoring"
+      provider: !Find [authentik_providers_proxy.proxyprovider, ["name", "Uptime Kuma"]]
+  - model: authentik_policies_expression.expressionpolicy
+    id: goauthentik.io/policies/uptime-kuma-group
+    state: present
+    identifiers:
+      name: "Uptime Kuma group allow"
+    attrs:
+      name: "Uptime Kuma group allow"
+      expression: |
+        # Allow only users in the configured group
+        return request.user.ak_groups.filter(name="{{ external_uptime_kuma_auth_group }}").exists()
+  - model: authentik_policies.policybinding
+    id: goauthentik.io/app-policy-bindings/uptime-kuma-group
+    state: present
+    identifiers:
+      target: !KeyOf goauthentik.io/apps/uptime-kuma
+      policy: !KeyOf goauthentik.io/policies/uptime-kuma-group
+    attrs:
+      order: 0
+      enabled: true
+      policy: !KeyOf goauthentik.io/policies/uptime-kuma-group
+      target: !KeyOf goauthentik.io/apps/uptime-kuma
+  - model: authentik_outposts.outpost
+    id: goauthentik.io/outposts/uptime-kuma
+    state: present
+    identifiers:
+      name: "{{ external_uptime_kuma_outpost_name }}"
+    attrs:
+      name: "{{ external_uptime_kuma_outpost_name }}"
+      type: proxy
+      service_connection: !KeyOf goauthentik.io/service-connections/docker-local
+      config:
+        authentik_host: "{{ external_authentik_base_url }}"
+        authentik_host_browser: "{{ external_authentik_base_url }}"
+        container_image: "{{ external_authentik_outpost_image }}"
+        docker_network: "authentik"
+        docker_map_ports: true
+        token: "{{ AUTHENTIK_API_TOKEN }}"
+        providers:
+          - !Find [authentik_providers_proxy.proxyprovider, ["name", "Uptime Kuma"]]

@@ -52,3 +52,10 @@
     - external_enable_services
     - "'authentik' in external_enabled_services"
   tags: [external, external_services, external_authentik]
+
+- name: External | Authentik | Apply blueprints
+  ansible.builtin.include_tasks: authentik_blueprints.yml
+  when:
+    - external_enable_services
+    - "'authentik' in external_enabled_services"
+  tags: [external, external_services, external_authentik]

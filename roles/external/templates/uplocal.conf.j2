@@ -15,7 +15,28 @@ server {
     ssl_certificate /etc/letsencrypt/live/{{ DNS_DOMAIN }}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/{{ DNS_DOMAIN }}/privkey.pem;
 
+    {% if external_uptime_kuma_authentik_enabled %}
+    location /outpost.goauthentik.io/ {
+        proxy_pass http://localhost:{{ external_authentik_outpost_port }}/outpost.goauthentik.io/;
+        proxy_set_header Host {{ external_authentik_host }};
+        proxy_set_header X-Original-URL $scheme://$http_host$request_uri;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_ssl_server_name on;
+    }
+    {% endif %}
+
     location / {
+        {% if external_uptime_kuma_authentik_enabled %}
+        auth_request /outpost.goauthentik.io/auth/nginx;
+        error_page 401 = @authentik_start;
+        error_page 403 = @authentik_forbidden;
+        auth_request_set $authentik_email $upstream_http_x_authentik_email;
+        auth_request_set $authentik_username $upstream_http_x_authentik_username;
+        proxy_set_header X-Authentik-Email $authentik_email;
+        proxy_set_header X-Authentik-Username $authentik_username;
+        {% endif %}
         proxy_pass http://localhost:3001/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -36,5 +57,16 @@ server {
         proxy_send_timeout 90s;
         proxy_read_timeout 90s;
     }
+
+    {% if external_uptime_kuma_authentik_enabled %}
+    location @authentik_start {
+        # Hand off to the local outpost handler; it will redirect to Authentik and back
+        return 302 /outpost.goauthentik.io/start?rd=$scheme://$http_host$request_uri;
+    }
+
+    location @authentik_forbidden {
+        return 403;
+    }
+    {% endif %}
 
 }

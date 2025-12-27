@@ -26,3 +26,18 @@ external_nginx_sites_enabled:
   - ntfy
   - navidrome
   - authentik
+
+external_authentik_apply_blueprints: true
+external_authentik_base_url: "https://authentik.{{ DNS_DOMAIN }}"
+external_authentik_host: "authentik.{{ DNS_DOMAIN }}"
+external_authentik_docker_service_connection_name: local-docker
+external_authentik_outpost_container_name: authentik-outpost
+external_authentik_outpost_image: "ghcr.io/goauthentik/proxy:2025.10.0"
+external_authentik_outpost_port: 9000
+external_uptime_kuma_application_slug: uptime-kuma
+external_uptime_kuma_auth_group: uptime-kuma-users
+external_uptime_kuma_authentik_enabled: true
+external_uptime_kuma_skip_path_regex: '^/(health|manifest\.json|service-worker\.js|favicon\.ico)$'
+external_uptime_kuma_external_host: "https://uplocal.{{ DNS_DOMAIN }}"
+external_uptime_kuma_internal_host: "http://uplocal:3001"
+external_uptime_kuma_outpost_name: uptime-kuma-embedded

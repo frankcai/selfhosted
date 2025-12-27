@@ -55,3 +55,6 @@
     state: started
     enabled: true
   become: true
+
+- name: Flush Nginx handlers
+  ansible.builtin.meta: flush_handlers

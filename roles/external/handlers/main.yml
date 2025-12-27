@@ -70,3 +70,10 @@
     name: authentik-worker
     state: started
   become: true
+
+- name: Restart Authentik Outpost Container
+  community.docker.docker_container:
+    name: "{{ external_authentik_outpost_container_name }}"
+    state: started
+    restart: true
+  become: true
